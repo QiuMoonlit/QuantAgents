@@ -408,6 +408,41 @@ class TestAnalystKeysMatchTheGraph:
         assert len(plan.specs) == len(req.analysts)
 
 
+class TestStateDirPreflight:
+    """A read-only home directory must be reported, not discovered 30s into a run.
+
+    QuantAgent's state lives under ~/.quantagent by default. In a sandboxed or
+    containerised context that is outside the writable tree, and the failure
+    used to surface as a bare PermissionError from inside graph construction.
+    """
+
+    def _set_dirs(self, monkeypatch, results: str, cache: str) -> None:
+        # DEFAULT_CONFIG is built at import, so patching the dict is what
+        # actually changes what the server reads; setenv would be too late.
+        from quantagent.default_config import DEFAULT_CONFIG
+
+        monkeypatch.setitem(DEFAULT_CONFIG, "results_dir", results)
+        monkeypatch.setitem(DEFAULT_CONFIG, "data_cache_dir", cache)
+
+    def test_a_writable_tree_reports_no_problem(self, monkeypatch, tmp_path):
+        self._set_dirs(monkeypatch, str(tmp_path / "logs"), str(tmp_path / "cache"))
+        assert server.state_dir_problem() is None
+
+    def test_an_unwritable_directory_is_named_and_actioned(self, monkeypatch):
+        self._set_dirs(monkeypatch, r"C:\Windows\System32\config\qa", r"C:\Windows\System32\config\qc")
+        problem = server.state_dir_problem()
+        assert problem is not None
+        assert "QUANTAGENT_RESULTS_DIR" in problem, "it should say how to fix it"
+        assert "qa" in problem, "it should name the path it tried"
+
+    def test_the_config_endpoint_exposes_the_problem(self, monkeypatch):
+        """The page needs to be able to say this before the user clicks run."""
+        self._set_dirs(monkeypatch, r"C:\Windows\System32\config\qa", r"C:\Windows\System32\config\qc")
+        payload = server.config()
+        assert payload["state_dirs_writable"] is False
+        assert "QUANTAGENT_RESULTS_DIR" in payload["state_dir_error"]
+
+
 class TestSseFrames:
     """Frame format and replay, without a socket.
 

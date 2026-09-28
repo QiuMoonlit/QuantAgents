@@ -29,6 +29,7 @@ import asyncio
 import contextlib
 import datetime
 import json
+import logging
 import os
 import threading
 import time
@@ -40,7 +41,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -529,6 +530,8 @@ def config() -> dict:
         "max_debate_rounds": DEFAULT_CONFIG["max_debate_rounds"],
         "max_risk_discuss_rounds": DEFAULT_CONFIG["max_risk_discuss_rounds"],
         "results_dir": DEFAULT_CONFIG["results_dir"],
+        "state_dirs_writable": state_dir_problem() is None,
+        "state_dir_error": state_dir_problem(),
         "api_key_configured": bool(
             os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY")
         ),
@@ -536,8 +539,55 @@ def config() -> dict:
     }
 
 
+logger = logging.getLogger(__name__)
+
+
+def state_dir_problem() -> str | None:
+    """Why the run's state directories are unusable, or None if they are fine.
+
+    QuantAgent writes its cache, results and memory log under
+    ``~/.quantagent`` by default. That is the right default in a normal
+    terminal and the wrong one in a sandboxed or containerised context, where the
+    home directory is outside the writable tree — and the failure surfaces as a
+    bare ``PermissionError: [WinError 5]`` from deep inside graph
+    construction, several frames past anything the user can act on.
+
+    Checked once at startup and reported on /api/config, so the page can say
+    what to do instead of showing a stack trace after a minute of waiting.
+    """
+    from quantagent.default_config import DEFAULT_CONFIG
+
+    for key in ("results_dir", "data_cache_dir"):
+        directory = Path(DEFAULT_CONFIG[key]).expanduser()
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            probe = directory / ".quantagent-write-probe"
+            probe.write_text("", encoding="utf-8")
+            probe.unlink()
+        except OSError as exc:
+            return (
+                f"Cannot use {key} at {directory}: {exc.strerror or exc}. "
+                f"Point it somewhere writable by setting QUANTAGENT_RESULTS_DIR "
+                f"and QUANTAGENT_CACHE_DIR before starting the server."
+            )
+    return None
+
+
+@app.on_event("startup")
+async def _check_state_dirs() -> None:
+    problem = state_dir_problem()
+    if problem:
+        logger.error("State directories are unusable: %s", problem)
+
+
 @app.post("/api/analyze")
 async def analyze(req: AnalyzeRequest) -> dict:
+    # Refuse before starting a run rather than letting graph construction raise
+    # a PermissionError thirty seconds into a run the user already paid for.
+    problem = state_dir_problem()
+    if problem:
+        raise HTTPException(status_code=503, detail=problem)
+
     run = Run(
         id=uuid.uuid4().hex[:12],
         ticker=req.ticker.strip().upper(),
