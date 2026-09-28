@@ -73,20 +73,30 @@
         <button id="runBtn" class="btn-primary">
           <span class="btn-label">开始分析</span>
         </button>
-        <button id="stopBtn" class="btn-ghost is-hidden">中止</button>
-        <p class="hint" id="runHint">一次完整分析通常需要 1–5 分钟，取决于所选分析师数量。</p>
+        <button id="stopBtn" class="btn-ghost is-hidden">中止分析</button>
+        <p class="hint" id="runHint">一次完整分析通常需要 1–5 分钟，取决于所选分析师数量。中止会在当前智能体完成后停止。</p>
       </aside>
 
       <!-- 执行区 -->
       <div class="panel work">
         <div class="panel-head">
           <h2>多智能体协作</h2>
+          <div class="run-stats is-hidden" id="runStats">
+            <span class="stat"><b id="statCalls">0</b><i>模型调用</i></span>
+            <span class="stat"><b id="statTokens">0</b><i>Tokens</i></span>
+            <span class="stat"><b id="statCost">—</b><i>预估费用</i></span>
+            <span class="stat"><b id="statElapsed">0s</b><i>耗时</i></span>
+          </div>
           <div class="run-chip is-hidden" id="runChip">
             <span id="runTicker"></span>
             <span class="dot"></span>
             <span id="runDate"></span>
             <span class="run-chip-state" id="runState">运行中</span>
           </div>
+        </div>
+
+        <div class="queue-note is-hidden" id="queueNote">
+          <span class="spinner"></span> 正在排队，前面还有一次分析在运行
         </div>
 
         <div class="empty" id="emptyState">

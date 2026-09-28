@@ -24,11 +24,16 @@ const REPORTS = [
 
 const state = {
   teams: [],
+  statusZh: { pending: '等待中', running: '分析中', done: '已完成' },
   status: {},      // agent key -> pending | running | done
   snapshot: {},    // state field -> text
   activeTab: null,
   source: null,    // EventSource
+  runId: null,
   running: false,
+  startedAt: null,
+  tickTimer: null,
+  cancelled: false,
 };
 
 /* ------------------------------------------------------------------ utils */
@@ -130,7 +135,7 @@ function buildAgentBoard(teams) {
       </div>
       <div class="agent-grid">
         ${team.agents.map((a) => `
-          <div class="agent is-pending" data-agent="${escapeHtml(a.key)}">
+          <div class="agent is-pending" data-agent="${escapeHtml(a.key)}" title="${escapeHtml(state.statusZh.pending || 'pending')}">
             <span class="agent-dot"></span>
             <span class="agent-name">${escapeHtml(a.label_zh)}</span>
           </div>`).join('')}
@@ -145,6 +150,7 @@ function applyStatus(status) {
     if (!el) continue;
     el.classList.remove('is-pending', 'is-running', 'is-done');
     el.classList.add('is-' + value);
+    el.title = state.statusZh[value] || value;
   }
   for (const team of state.teams) {
     const done = team.agents.filter((a) => state.status[a.key] === 'done').length;
@@ -195,7 +201,44 @@ function setRunning(on) {
   $('stopBtn').classList.toggle('is-hidden', !on);
   $('emptyState').classList.toggle('is-hidden', on);
   $('agentBoard').classList.toggle('is-hidden', !on);
-  if (!on) $('runState').classList.remove('is-running');
+  if (on) {
+    $('runChip').classList.remove('is-hidden');
+    $('runStats').classList.remove('is-hidden');
+    startClock();
+  } else {
+    stopClock();
+  }
+}
+
+function startClock() {
+  stopClock();
+  state.startedAt = Date.now();
+  state.tickTimer = setInterval(() => {
+    $('statElapsed').textContent = fmtDuration(Date.now() - state.startedAt);
+  }, 1000);
+}
+
+function stopClock() {
+  if (state.tickTimer) { clearInterval(state.tickTimer); state.tickTimer = null; }
+}
+
+function fmtDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + 's';
+  return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+}
+
+function applyStats(stats) {
+  if (!stats) return;
+  $('statCalls').textContent  = stats.llm_calls ?? 0;
+  $('statTokens').textContent = ((stats.tokens_in || 0) + (stats.tokens_out || 0)).toLocaleString();
+  $('statCost').textContent    = stats.cost_usd == null ? '—' : '$' + stats.cost_usd.toFixed(4);
+  $('statElapsed').textContent = fmtDuration(Date.now() - (state.startedAt || Date.now()));
+}
+
+function setRunState(text, cls) {
+  $('runState').textContent = text;
+  $('runState').className = 'run-chip-state' + (cls ? ' ' + cls : '');
 }
 
 $('runBtn').addEventListener('click', async () => {
@@ -206,18 +249,22 @@ $('runBtn').addEventListener('click', async () => {
   if (!ticker) { alert('请输入股票代码'); return; }
   if (!date)   { alert('请选择分析日期'); return; }
   if (!analysts.length) { alert('至少选择一个分析师'); return; }
+  if (date > new Date().toISOString().slice(0, 10)) { alert('分析日期不能晚于今天'); return; }
 
   $('errorBox').classList.add('is-hidden');
   $('decisionCard').classList.add('is-hidden');
   $('reportPanel').classList.add('is-hidden');
+  $('queueNote').classList.add('is-hidden');
   state.snapshot = {};
   state.status = {};
+  state.cancelled = false;
   applyStatus({});
+  applyStats({ llm_calls: 0, tokens_in: 0, tokens_out: 0, cost_usd: null });
 
   setRunning(true);
   $('runTicker').textContent = ticker.toUpperCase();
   $('runDate').textContent = date;
-  $('runState').textContent = '运行中';
+  setRunState('运行中', 'is-running');
 
   try {
     const res = await fetch('/api/analyze', {
@@ -231,35 +278,51 @@ $('runBtn').addEventListener('click', async () => {
         max_risk_rounds: Number($('riskRounds').value),
       }),
     });
-    if (!res.ok) throw new Error(`启动失败: HTTP ${res.status}`);
-    const run = await res.json();
-    follow(run.run_id);
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail?.[0]?.msg || body.detail || `HTTP ${res.status}`);
+    state.runId = body.run_id;
+    follow(body.run_id);
   } catch (err) {
     showError(String(err));
     setRunning(false);
   }
 });
 
-$('stopBtn').addEventListener('click', () => {
-  if (state.source) { state.source.close(); state.source = null; }
-  setRunning(false);
-  $('runState').textContent = '已中止';
-  $('runState').className = 'run-chip-state';
+/* Stop asks the server to stop. Closing the EventSource alone would leave the
+   worker running and still paying for LLM calls. */
+$('stopBtn').addEventListener('click', async () => {
+  if (!state.runId) return;
+  $('stopBtn').disabled = true;
+  setRunState('正在中止…', 'is-cancelled');
+  try {
+    await fetch(`/api/cancel/${state.runId}`, { method: 'POST' });
+  } catch { /* the run will still be stopped server-side or report its own error */ }
+  $('stopBtn').disabled = false;
 });
 
 function follow(runId) {
+  state.runId = runId;
   if (state.source) state.source.close();
   const src = new EventSource(`/api/stream/${runId}`);
   state.source = src;
+  let sawTerminal = false;
 
   src.onmessage = (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
 
     switch (msg.type) {
+      case 'queued':
+        $('queueNote').classList.remove('is-hidden');
+        setRunState('排队中', 'is-running');
+        break;
+
       case 'started':
+        $('queueNote').classList.add('is-hidden');
         state.teams = msg.teams || state.teams;
+        state.statusZh = msg.status_zh || state.statusZh;
         buildAgentBoard(state.teams);
+        setRunState('运行中', 'is-running');
         break;
 
       case 'status':
@@ -269,6 +332,7 @@ function follow(runId) {
       case 'snapshot': {
         const prev = state.snapshot;
         state.snapshot = msg.state || {};
+        applyStats(msg.stats);
         const changed = REPORTS.find((r) => state.snapshot[r.key] !== prev[r.key]);
         $('reportPanel').classList.remove('is-hidden');
         if (!state.activeTab || (!prev[state.activeTab] && state.snapshot[state.activeTab])) {
@@ -280,19 +344,30 @@ function follow(runId) {
       }
 
       case 'done':
+        applyStats(msg.stats);
         $('decisionBody').textContent = msg.decision || '';
         $('ratingBadge').textContent = msg.rating || '—';
         $('ratingBadge').dataset.r = msg.rating || '';
         $('decisionCard').classList.remove('is-hidden');
-        $('runState').textContent = '完成';
-        $('runState').className = 'run-chip-state is-done';
+        setRunState('完成', 'is-done');
+        sawTerminal = true;
         loadHistory();
         break;
 
+      case 'cancelled':
+        applyStats(msg.stats);
+        $('queueNote').classList.add('is-hidden');
+        setRunState('已中止', 'is-cancelled');
+        showError('分析已中止。' + (msg.reason ? `（${msg.reason}）` : '') +
+                  '\n注意：中止在当前智能体完成后生效，该节点的模型调用费用已经产生。');
+        sawTerminal = true;
+        break;
+
       case 'error':
+        $('queueNote').classList.add('is-hidden');
         showError(msg.error + (msg.traceback ? '\n\n' + msg.traceback : ''));
-        $('runState').textContent = '失败';
-        $('runState').className = 'run-chip-state is-error';
+        setRunState('失败', 'is-error');
+        sawTerminal = true;
         break;
 
       case 'closed':
@@ -303,12 +378,15 @@ function follow(runId) {
     }
   };
 
+  /* A dropped connection must not strand the run: the server keeps it and can
+     replay the event buffer, so reconnect and re-render. */
   src.onerror = () => {
-    if (state.source === src) {
-      src.close();
-      state.source = null;
-      setRunning(false);
-    }
+    if (state.source !== src) return;
+    src.close();
+    state.source = null;
+    if (sawTerminal) { setRunning(false); return; }
+    setRunState('连接中断，重连中…', 'is-running');
+    setTimeout(() => { if (state.runId === runId) follow(runId); }, 2000);
   };
 }
 
@@ -355,11 +433,12 @@ document.querySelectorAll('.tab').forEach((tab) => {
   $('tradeDate').value = now.toISOString().slice(0, 10);
 
   try {
-    const [teams, cfg] = await Promise.all([
+    const [teamsBody, cfg] = await Promise.all([
       fetch('/api/teams').then((r) => r.json()),
       fetch('/api/config').then((r) => r.json()),
     ]);
-    state.teams = teams;
+    state.teams = teamsBody.teams || [];
+    state.statusZh = teamsBody.status_zh || state.statusZh;
     $('debateRounds').value = cfg.max_debate_rounds;
     $('riskRounds').value = cfg.max_risk_discuss_rounds;
 
