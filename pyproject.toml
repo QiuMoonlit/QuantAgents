@@ -41,15 +41,23 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Web UI (quantagent.web.server). Pulls in FastAPI + uvicorn, which the
+# terminal CLI does not need.
+web = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+]
 
 [project.scripts]
 quantagent = "cli.main:app"
+quantagent-web = "quantagent.web.server:serve"
 
 [tool.setuptools.packages.find]
 include = ["quantagent*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+"quantagent.web" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

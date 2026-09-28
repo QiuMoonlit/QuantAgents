@@ -41,7 +41,8 @@
 - **QuantAgent v0.6.0** — renamed to QuantAgent: the `quantagent` package and CLI
   command, the `QUANTAGENT_*` settings prefix (the old `TRADINGAGENTS_*` names still
   work), and `QuantAgentGraph` as the public graph class. The full upstream suite
-  (1007 tests) passes on the rename.
+  passes on the rename. Adds a web UI with SSE progress streaming, and a fix for
+  curl_cffi losing the CA bundle under non-ASCII checkout paths.
 
 Upstream releases, inherited from TradingAgents:
 
@@ -68,7 +69,7 @@ Full release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 <div align="center">
 
-🚀 [Framework](#quantagent-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 📦 [Package Usage](#quantagent-package) | 🔀 [What QuantAgent changes](#what-quantagent-changes) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [Framework](#quantagent-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🌐 [Web UI](#web-ui) | 📦 [Package Usage](#quantagent-package) | 🔀 [What QuantAgent changes](#what-quantagent-changes) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -158,7 +159,7 @@ pip install .
 For development, install editable with the test and lint extras:
 ```bash
 pip install -e ".[dev]"
-pytest        # 1008 tests
+pytest        # 1036 tests
 ruff check .
 ```
 
@@ -188,6 +189,48 @@ CURL_CA_BUNDLE=C:\Users\<you>\quantagent-cacert.pem
 
 Re-run the script after recreating the virtualenv. Moving the checkout to an
 ASCII path (e.g. `C:\src\QuantAgent`) avoids the problem entirely.
+
+### Web UI
+
+A dark terminal-style web interface ships with the project. It runs the same
+multi-agent graph and streams progress over SSE, so you can watch each analyst
+and debater light up as it finishes instead of sitting at a terminal.
+
+```bash
+pip install -e ".[web]"      # adds FastAPI + uvicorn
+quantagent-web               # http://127.0.0.1:8420
+```
+
+Or drive uvicorn directly:
+
+```bash
+uvicorn quantagent.web.server:app --port 8420
+```
+
+**What it does**
+
+- Left rail: ticker, analysis date, which analysts to run, debate round counts.
+  Everything pre-filled from `.env` / `DEFAULT_CONFIG`.
+- Centre: the five agent teams, each agent going `pending → running → done` as
+  the graph advances, with the live-updating report panel below.
+- Final decision card with the parsed rating, colour-coded
+  (Buy/Overweight green, Hold amber, Underweight/Sell red).
+- A second tab reads the decision log written to
+  `~/.quantagent/memory/trading_memory.md`.
+
+**How it works.** `quantagent/graph/propagation.py` already runs the graph with
+`stream_mode="values"`, so every node completion yields the full state.
+`quantagent/web/server.py` diffs that state to decide which agent just
+finished, then pushes an SSE frame. No changes to the graph, the agents, or the
+vendor layer were needed — the terminal TUI consumes the same stream.
+
+Runs are serialised behind a single lock: the vendor router and the decision log
+hold process-level state, so two concurrent runs would interleave. One analysis
+at a time, which is also how the LLM cost works out.
+
+**Not included:** no auth, no multi-user isolation, and it binds to loopback.
+Put it behind a reverse proxy with auth before binding it to anything but
+`127.0.0.1`.
 
 ### Docker
 
@@ -294,11 +337,16 @@ the backtest harness — is upstream TradingAgents v0.5.1 as shipped.
 - See [NOTICE](NOTICE) for the Apache-2.0 derivation record.
 
 **Planned**
-- Chinese-language analyst reports and CLI output, with the English rating
-  vocabulary (`Buy` / `Overweight` / `Hold` / `Underweight` / `Sell`) kept intact
-  so the signal parser and backtest scoring keep working.
+- Chinese-language analyst reports and CLI output beyond what shipped in
+  v0.6.0 — the narrative is already localized, the CLI chrome is not.
 - A-share and Hong Kong data vendors alongside the US ones, which means moving
   off SEC EDGAR for fundamentals and replacing StockTwits/Reddit for sentiment.
+
+**Added in v0.6.0**
+- A web UI (`quantagent.web`) with SSE progress streaming — see
+  [Web UI](#web-ui).
+- `CURL_CA_BUNDLE` fix for checkouts under a non-ASCII path — see
+  [Windows](#windows-the-project-folder-must-not-contain-non-ascii-characters).
 
 ## QuantAgent Package
 

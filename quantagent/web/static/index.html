@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuantAgent · 多智能体投研终端</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">QA</span>
+    <div class="brand-text">
+      <h1>QuantAgent</h1>
+      <p>多智能体 LLM 投研终端</p>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab is-active" data-view="analyze" role="tab">分析</button>
+    <button class="tab" data-view="history" role="tab">决策记忆</button>
+  </nav>
+  <div class="topbar-meta" id="configMeta">
+    <span class="pill pill-idle">加载中…</span>
+  </div>
+</header>
+
+<main>
+  <!-- ============================ 分析 ============================ -->
+  <section class="view is-active" id="view-analyze">
+    <div class="layout">
+      <!-- 控制面板 -->
+      <aside class="panel control">
+        <div class="panel-head">
+          <h2>分析设置</h2>
+        </div>
+
+        <label class="field">
+          <span class="field-label">股票代码</span>
+          <input id="ticker" type="text" value="NVDA" spellcheck="false"
+                 placeholder="NVDA / 600519.SS / 0700.HK">
+          <small>支持美股、港股、A 股（.SS / .SZ / .HK）</small>
+        </label>
+
+        <label class="field">
+          <span class="field-label">分析日期</span>
+          <input id="tradeDate" type="date">
+        </label>
+
+        <div class="field">
+          <span class="field-label">启用分析师</span>
+          <div class="checkgrid" id="analystPicker">
+            <label class="check"><input type="checkbox" value="market" checked><span>技术分析</span></label>
+            <label class="check"><input type="checkbox" value="news" checked><span>新闻</span></label>
+            <label class="check"><input type="checkbox" value="fundamentals" checked><span>基本面</span></label>
+            <label class="check"><input type="checkbox" value="sentiment" checked><span>情绪</span></label>
+          </div>
+          <small>勾选越多耗时和 token 越高</small>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">多空辩论轮数</span>
+            <input id="debateRounds" type="number" min="0" max="10" value="1">
+          </label>
+          <label class="field">
+            <span class="field-label">风控辩论轮数</span>
+            <input id="riskRounds" type="number" min="0" max="10" value="1">
+          </label>
+        </div>
+
+        <button id="runBtn" class="btn-primary">
+          <span class="btn-label">开始分析</span>
+        </button>
+        <button id="stopBtn" class="btn-ghost is-hidden">中止</button>
+        <p class="hint" id="runHint">一次完整分析通常需要 1–5 分钟，取决于所选分析师数量。</p>
+      </aside>
+
+      <!-- 执行区 -->
+      <div class="panel work">
+        <div class="panel-head">
+          <h2>多智能体协作</h2>
+          <div class="run-chip is-hidden" id="runChip">
+            <span id="runTicker"></span>
+            <span class="dot"></span>
+            <span id="runDate"></span>
+            <span class="run-chip-state" id="runState">运行中</span>
+          </div>
+        </div>
+
+        <div class="empty" id="emptyState">
+          <div class="empty-art">📊</div>
+          <h3>尚未开始分析</h3>
+          <p>在左侧填入股票代码并点击「开始分析」，<br>四个团队的智能体会依次协作产出决策。</p>
+        </div>
+
+        <div class="agents is-hidden" id="agentBoard"></div>
+
+        <div class="decision-card is-hidden" id="decisionCard">
+          <div class="decision-head">
+            <span class="decision-label">最终决策</span>
+            <span class="rating" id="ratingBadge">—</span>
+          </div>
+          <pre class="decision-body" id="decisionBody"></pre>
+        </div>
+
+        <div class="alert is-hidden" id="errorBox"></div>
+      </div>
+    </div>
+
+    <!-- 报告 -->
+    <div class="panel reports is-hidden" id="reportPanel">
+      <div class="panel-head">
+        <h2>分析报告</h2>
+        <span class="muted" id="reportMeta"></span>
+      </div>
+      <div class="report-tabs" id="reportTabs"></div>
+      <article class="report-body markdown" id="reportBody"></article>
+    </div>
+  </section>
+
+  <!-- ========================== 决策记忆 ========================== -->
+  <section class="view" id="view-history">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>决策记忆</h2>
+        <span class="muted" id="historyMeta"></span>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
