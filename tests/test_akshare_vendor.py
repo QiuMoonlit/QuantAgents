@@ -313,6 +313,38 @@ class TestRouterIntegration:
             resolve_cn_symbol_or_skip("AAPL")
         assert "not a Chinese market" in str(caught.value)
 
+    def test_get_closes_routes_so_chinese_decisions_can_settle(self):
+        """Settlement used to import yfinance's get_closes directly, so a
+        Chinese ticker's outcome never resolved — and fetch_returns swallows
+        that failure, so the only symptom was a permanently pending decision
+        and a warning nobody reads."""
+        from quantagent.dataflows.router import VENDOR_METHODS, get_category_for_method
+
+        assert "akshare" in VENDOR_METHODS["get_closes"]
+        assert get_category_for_method("get_closes") == "core_stock_apis"
+
+    def test_settlement_no_longer_hardcodes_a_vendor(self):
+        """Regression guard: any direct vendor import there reintroduces the
+        silent-pending bug."""
+        import ast
+        from pathlib import Path
+
+        from quantagent.graph import settlement
+
+        tree = ast.parse(Path(settlement.__file__).read_text(encoding="utf-8"))
+        for node in tree.body:  # module scope only
+            if isinstance(node, ast.ImportFrom) and node.module:
+                assert "vendors.yahoo" not in node.module, (
+                    "settlement must route through the registry, not import a vendor"
+                )
+
+    def test_get_closes_is_not_offered_to_agents_as_a_tool(self):
+        """It belongs in the registry but not on an analyst's tool list."""
+        from quantagent.dataflows.router import TOOLS_CATEGORIES
+
+        for info in TOOLS_CATEGORIES.values():
+            assert "get_closes" not in info["tools"]
+
 
 class TestLayering:
     def test_akshare_is_imported_lazily_not_at_module_scope(self):

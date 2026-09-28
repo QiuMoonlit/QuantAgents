@@ -4,10 +4,31 @@ it against its benchmark and record a reflection on it in the decision log."""
 import logging
 from datetime import datetime, timedelta
 
+from quantagent.dataflows.router import route_to_vendor
 from quantagent.dataflows.symbols import normalize_symbol
-from quantagent.dataflows.vendors.yahoo.market import get_closes
 
 logger = logging.getLogger(__name__)
+
+
+def _closes(symbol: str, start_date: str, end_date: str):
+    """Daily closes for ``symbol`` from whichever vendor is configured.
+
+    Routed through the registry so the chain that priced the analysis is also
+    the chain that settles it; asking a fixed vendor here is how a Chinese
+    decision ended up permanently pending.
+    """
+    import pandas as pd
+
+    from quantagent.dataflows.errors import NoMarketDataError
+
+    text = route_to_vendor("get_closes", symbol, start_date, end_date)
+    if isinstance(text, pd.Series):
+        return text
+    if isinstance(text, str) and text.startswith(("NO_DATA_AVAILABLE", "DATA_UNAVAILABLE")):
+        raise NoMarketDataError(symbol, symbol, text.split(".")[0])
+    raise NoMarketDataError(
+        symbol, symbol, f"get_closes returned {type(text).__name__}, not a price series"
+    )
 
 
 def resolve_benchmark(ticker: str, config: dict) -> str:
@@ -57,8 +78,15 @@ def fetch_returns(
         end_str = end.strftime("%Y-%m-%d")
 
         # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984).
-        stock = get_closes(ticker, trade_date, end_str)
-        bench = get_closes(benchmark, trade_date, end_str)
+        #
+        # Routed rather than imported from a vendor: this used to call
+        # yfinance directly, so a Chinese ticker's prices were requested from a
+        # vendor that does not carry it. fetch_returns swallows the failure and
+        # returns "pending", so the symptom was not an error — it was every
+        # Chinese decision staying unscored forever, with nothing in the log but
+        # a warning.
+        stock = _closes(ticker, trade_date, end_str)
+        bench = _closes(benchmark, trade_date, end_str)
 
         # Require the full holding window in both series. A rerun before it
         # has traded leaves the entry pending to retry next run, rather than

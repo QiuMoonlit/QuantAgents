@@ -13,6 +13,7 @@ from quantagent.dataflows.vendors.akshare.fundamentals import (
     get_cn_income_statement,
 )
 from quantagent.dataflows.vendors.akshare.market import (
+    get_cn_closes,
     get_cn_stock_data,
     get_cn_stock_stats_window,
 )
@@ -44,6 +45,7 @@ from quantagent.dataflows.vendors.yahoo.fundamentals import (
     get_insider_transactions as get_yfinance_insider_transactions,
 )
 from quantagent.dataflows.vendors.yahoo.market import (
+    get_closes as get_yfinance_closes,
     get_stock_stats_indicators_window,
     get_YFin_data_online,
 )
@@ -174,6 +176,23 @@ VENDOR_METHODS = {
     "get_prediction_markets": {
         "polymarket": get_polymarket_prediction_markets,
     },
+    # Not an agent tool: the settlement and alpha layer needs a price series
+    # to score a past decision, and it must come from the same chain that
+    # priced the analysis rather than a hardcoded vendor.
+    "get_closes": {
+        "akshare": get_cn_closes,
+        "yfinance": get_yfinance_closes,
+    },
+}
+
+
+# Methods that are not agent tools but still need a vendor decision. They are
+# absent from TOOLS_CATEGORIES on purpose — an agent must not be offered a bare
+# close series as a tool — so they are mapped to a category explicitly.
+NON_TOOL_METHOD_CATEGORIES = {
+    # The settlement and alpha layer scores past decisions against prices; it
+    # should use whatever chain priced the analysis.
+    "get_closes": "core_stock_apis",
 }
 
 
@@ -182,6 +201,8 @@ def get_category_for_method(method: str) -> str:
     for category, info in TOOLS_CATEGORIES.items():
         if method in info["tools"]:
             return category
+    if method in NON_TOOL_METHOD_CATEGORIES:
+        return NON_TOOL_METHOD_CATEGORIES[method]
     raise ValueError(f"Method '{method}' not found in any category")
 
 
