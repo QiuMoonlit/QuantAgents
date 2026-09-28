@@ -6,6 +6,12 @@ from quantagent.dataflows.errors import (
     VendorNotConfiguredError,
     VendorRateLimitError,
 )
+from quantagent.dataflows.vendors.akshare.fundamentals import (
+    get_cn_balance_sheet,
+    get_cn_cashflow,
+    get_cn_fundamentals,
+    get_cn_income_statement,
+)
 from quantagent.dataflows.vendors.akshare.market import (
     get_cn_stock_data,
     get_cn_stock_stats_window,
@@ -126,20 +132,24 @@ VENDOR_METHODS = {
     # fundamental_data
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
+        "akshare": get_cn_fundamentals,
         "yfinance": get_yfinance_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
+        "akshare": get_cn_balance_sheet,
         "sec_edgar": get_sec_edgar_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
+        "akshare": get_cn_cashflow,
         "sec_edgar": get_sec_edgar_cashflow,
         "yfinance": get_yfinance_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
+        "akshare": get_cn_income_statement,
         "sec_edgar": get_sec_edgar_income_statement,
         "yfinance": get_yfinance_income_statement,
     },
