@@ -25,7 +25,7 @@ from quantagent.agents.rating import RATING_REVIEW
 from quantagent.dataflows.date_window import get_current_date
 from quantagent.dataflows.symbols import safe_ticker_component
 from quantagent.decision_log import TradingMemoryLog
-from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.graph.trading_graph import QuantAgentGraph
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ def run_backtest(
     run_config = {**config, "results_dir": str(run_dir),
                   "memory_log_path": str(run_dir / "trading_memory.md")}
 
-    graph = TradingAgentsGraph(selected_analysts, config=run_config)
+    graph = QuantAgentGraph(selected_analysts, config=run_config)
     result = BacktestResult(run_id=run_id, log_path=Path(run_config["memory_log_path"]))
     done = {(e["ticker"], e["date"]) for e in graph.memory_log.load_entries()}
 

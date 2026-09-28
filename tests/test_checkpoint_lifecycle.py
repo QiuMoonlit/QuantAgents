@@ -3,7 +3,7 @@
 Checkpoint setup previously lived only inside ``propagate``; the CLI streamed the
 checkpointer-less graph, so ``--checkpoint`` neither saved nor resumed. The
 lifecycle is now ``begin_checkpoint`` / ``end_checkpoint`` /
-``clear_checkpoint_on_success`` on TradingAgentsGraph, used by both paths. These
+``clear_checkpoint_on_success`` on QuantAgentGraph, used by both paths. These
 tests drive that lifecycle exactly as the CLI does (begin -> stream self.graph ->
 clear/end) and prove state is saved and resumed.
 """
@@ -16,7 +16,7 @@ import pytest
 from langgraph.graph import END, StateGraph
 
 from quantagent.graph.checkpointer import checkpoint_step
-from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.graph.trading_graph import QuantAgentGraph
 
 _should_crash = False
 
@@ -46,7 +46,7 @@ def _workflow() -> StateGraph:
 
 
 def _bare_graph(tmpdir, *, enabled=True):
-    g = object.__new__(TradingAgentsGraph)
+    g = object.__new__(QuantAgentGraph)
     g.config = {
         "checkpoint_enabled": enabled, "data_cache_dir": tmpdir,
         "max_debate_rounds": 1, "max_risk_discuss_rounds": 1,

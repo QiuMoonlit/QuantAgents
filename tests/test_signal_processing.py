@@ -79,12 +79,12 @@ class TestExtractRating:
 
 @pytest.mark.unit
 class TestGraphSignalContract:
-    """The graph-facing signal (TradingAgentsGraph.process_signal) honors the
+    """The graph-facing signal (QuantAgentGraph.process_signal) honors the
     documented "5-tier or REVIEW" contract, not just the parser in isolation."""
 
     def _bare_graph(self):
-        from quantagent.graph.trading_graph import TradingAgentsGraph
-        g = object.__new__(TradingAgentsGraph)
+        from quantagent.graph.trading_graph import QuantAgentGraph
+        g = object.__new__(QuantAgentGraph)
         return g
 
     def test_graph_surfaces_review(self):

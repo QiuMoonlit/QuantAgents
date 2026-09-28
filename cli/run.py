@@ -29,7 +29,7 @@ from quantagent.default_config import DEFAULT_CONFIG
 from quantagent.graph.analyst_execution import (
     build_analyst_execution_plan,
 )
-from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.graph.trading_graph import QuantAgentGraph
 from quantagent.reporting import write_report_tree
 
 
@@ -90,7 +90,7 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
     # --checkpoint/--no-checkpoint overrides only when explicitly given; omitting
-    # the flag preserves TRADINGAGENTS_CHECKPOINT_ENABLED / the default (#976).
+    # the flag preserves QUANTAGENT_CHECKPOINT_ENABLED / the default (#976).
     if checkpoint is not None:
         config["checkpoint_enabled"] = checkpoint
     return config
@@ -110,7 +110,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
     analyst_execution_plan = build_analyst_execution_plan(selected_analyst_keys)
     analyst_wall_time_tracker = AnalystWallTimeTracker(analyst_execution_plan)
 
-    graph = TradingAgentsGraph(
+    graph = QuantAgentGraph(
         selected_analyst_keys,
         config=config,
         debug=True,

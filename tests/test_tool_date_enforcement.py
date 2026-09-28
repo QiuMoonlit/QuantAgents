@@ -118,10 +118,10 @@ def test_direct_call_without_state_is_unchanged():
 @pytest.mark.unit
 @pytest.mark.parametrize("bad", ["2026-9-10", "2026-09-10 00:00", "Sept 10", None])
 def test_propagate_rejects_a_non_canonical_date(bad):
-    from quantagent.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import QuantAgentGraph
 
     with pytest.raises(ValueError, match="YYYY-MM-DD"):
-        object.__new__(TradingAgentsGraph).propagate("AAPL", bad)
+        object.__new__(QuantAgentGraph).propagate("AAPL", bad)
 
 
 @pytest.mark.unit
@@ -130,4 +130,4 @@ def test_propagate_rejects_a_future_date(monkeypatch):
 
     monkeypatch.setattr(tg, "get_current_date", lambda: "2026-09-10")
     with pytest.raises(ValueError, match="future"):
-        object.__new__(tg.TradingAgentsGraph).propagate("AAPL", "2026-09-11")
+        object.__new__(tg.QuantAgentGraph).propagate("AAPL", "2026-09-11")

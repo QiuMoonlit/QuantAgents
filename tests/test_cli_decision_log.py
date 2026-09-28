@@ -13,12 +13,12 @@ import pytest
 
 import cli.run as cli_run
 from quantagent.decision_log import TradingMemoryLog
-from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.graph.trading_graph import QuantAgentGraph
 
 
 def _bare_graph(tmp_path):
     """A graph without __init__ (no LLM clients), wired to a temp log."""
-    graph = object.__new__(TradingAgentsGraph)
+    graph = object.__new__(QuantAgentGraph)
     graph.config = {"memory_log_path": str(tmp_path / "trading_memory.md")}
     graph.memory_log = TradingMemoryLog(graph.config)
     return graph
@@ -146,7 +146,7 @@ def _run_cli(monkeypatch, tmp_path, fake):
     from cli.models import AnalystType
 
     buffer = _FakeBuffer()
-    monkeypatch.setattr(cli_run, "TradingAgentsGraph", lambda *a, **k: fake)
+    monkeypatch.setattr(cli_run, "QuantAgentGraph", lambda *a, **k: fake)
     monkeypatch.setattr(cli_run, "message_buffer", buffer)
     monkeypatch.setattr(cli_run, "create_layout", lambda: None)
     monkeypatch.setattr(cli_run, "update_display", lambda *a, **k: None)

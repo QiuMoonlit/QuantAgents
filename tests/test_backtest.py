@@ -36,7 +36,7 @@ def test_grid_rejects_a_non_canonical_date():
 
 
 class _FakeGraph:
-    """Stands in for TradingAgentsGraph, writing to the log the harness gave it."""
+    """Stands in for QuantAgentGraph, writing to the log the harness gave it."""
 
     instances: list = []
     fail_on: set = set()
@@ -66,7 +66,7 @@ def _fake_graph(monkeypatch, tmp_path):
 
     _FakeGraph.instances = []
     _FakeGraph.fail_on = set()
-    monkeypatch.setattr(bt, "TradingAgentsGraph", _FakeGraph)
+    monkeypatch.setattr(bt, "QuantAgentGraph", _FakeGraph)
     return _FakeGraph
 
 

@@ -10,7 +10,7 @@ _config: dict | None = None
 # The config of the run in progress. A graph binds its own for the length of a
 # run, so the data tools it calls read that graph's vendors even when several
 # graphs share a process. LangGraph carries the context into tool calls.
-_run_config: ContextVar[dict | None] = ContextVar("tradingagents_run_config", default=None)
+_run_config: ContextVar[dict | None] = ContextVar("quantagent_run_config", default=None)
 
 
 def initialize_config():

@@ -58,9 +58,9 @@ def _state(ticker, final="评级: 买入"):
 
 
 def _bare_graph(tmp_path):
-    from quantagent.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import QuantAgentGraph
 
-    graph = object.__new__(TradingAgentsGraph)
+    graph = object.__new__(QuantAgentGraph)
     graph.config = {"results_dir": str(tmp_path)}
     return graph
 

@@ -1,7 +1,7 @@
 from quantagent.default_config import DEFAULT_CONFIG
-from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.graph.trading_graph import QuantAgentGraph
 
-# DEFAULT_CONFIG already applies TRADINGAGENTS_* env-var overrides
+# DEFAULT_CONFIG already applies QUANTAGENT_* env-var overrides
 # (llm_provider, deep_think_llm, quick_think_llm, backend_url, etc.),
 # so users can switch models or endpoints purely via .env without
 # editing this script. Override individual keys here only when you
@@ -9,7 +9,7 @@ from quantagent.graph.trading_graph import TradingAgentsGraph
 config = DEFAULT_CONFIG.copy()
 
 # Initialize with custom config
-ta = TradingAgentsGraph(debug=True, config=config)
+ta = QuantAgentGraph(debug=True, config=config)
 
 # forward propagate
 _, decision = ta.propagate("NVDA", "2026-09-01")

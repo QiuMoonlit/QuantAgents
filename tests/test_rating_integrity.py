@@ -146,7 +146,7 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
     fake = _Graph()
     fake.graph = fake
     fake.propagator = fake
-    monkeypatch.setattr(cli_run, "TradingAgentsGraph", lambda *a, **k: fake)
+    monkeypatch.setattr(cli_run, "QuantAgentGraph", lambda *a, **k: fake)
     monkeypatch.setattr(cli_run, "create_layout", lambda: None)
     monkeypatch.setattr(cli_run, "update_display", lambda *a, **k: None)
     monkeypatch.setattr(cli_run, "Live", type("L", (), {"__init__": lambda s, *a, **k: None,

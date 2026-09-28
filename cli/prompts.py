@@ -357,7 +357,7 @@ def resolve_backend_url(
 ) -> str | None:
     """Resolve the backend URL with the correct precedence.
 
-    An explicit env override (``env_url``, from ``TRADINGAGENTS_LLM_BACKEND_URL``
+    An explicit env override (``env_url``, from ``QUANTAGENT_LLM_BACKEND_URL``
     via ``DEFAULT_CONFIG['backend_url']``) is honored regardless of how the
     provider was chosen — interactively or from the environment (#978).
     Otherwise the menu/region URL, then the provider's default.

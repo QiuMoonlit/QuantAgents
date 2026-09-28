@@ -78,9 +78,9 @@ def test_load_reads_a_valid_file(tmp_path):
 def _bare_graph(tmp_path):
     from quantagent.decision_log import TradingMemoryLog
     from quantagent.graph.propagation import Propagator
-    from quantagent.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import QuantAgentGraph
 
-    graph = object.__new__(TradingAgentsGraph)
+    graph = object.__new__(QuantAgentGraph)
     graph.config = {"memory_log_path": str(tmp_path / "m.md"), "max_debate_rounds": 1,
                     "max_risk_discuss_rounds": 1}
     graph.memory_log = TradingMemoryLog(graph.config)

@@ -23,7 +23,7 @@ class Propagator:
 
         ``instrument_context`` is the deterministic ticker-identity string
         resolved once at run start (see
-        ``TradingAgentsGraph.resolve_instrument_context``). When empty, agents
+        ``QuantAgentGraph.resolve_instrument_context``). When empty, agents
         fall back to ticker-only context via
         ``get_instrument_context_from_state``.
         """

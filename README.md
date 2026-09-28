@@ -27,11 +27,24 @@
 
 ---
 
-# TradingAgents: Multi-Agents LLM Financial Trading Framework
+# QuantAgent: Multi-Agents LLM Financial Trading Framework
+
+> **QuantAgent** is a fork of [TradingAgents](https://github.com/TauricResearch/TradingAgents)
+> by Tauric Research, pinned at upstream **v0.5.1** and rebranded as its own project.
+> It keeps the upstream framework intact and layers on the changes listed under
+> [What QuantAgent changes](#what-quantagent-changes). Licensed under Apache-2.0 —
+> see [NOTICE](NOTICE) for the derivation record and attribution.
 
 ## News
 
 <!-- news:start -->
+- **QuantAgent v0.6.0** — renamed to QuantAgent: the `quantagent` package and CLI
+  command, the `QUANTAGENT_*` settings prefix (the old `TRADINGAGENTS_*` names still
+  work), and `QuantAgentGraph` as the public graph class. The full upstream suite
+  (1007 tests) passes on the rename.
+
+Upstream releases, inherited from TradingAgents:
+
 - [2026-09] **TradingAgents v0.5.1** released with a package layout organised by what each module holds (import paths moved), optional Jev screening of social posts, GPT-6 Sol and Luna as the default models, and fixes to run isolation and SEC EDGAR statements.
 - [2026-09] **TradingAgents v0.5.0** released with point-in-time integrity across every dated path, SEC EDGAR fundamentals served as filed, backtesting over a ticker and date grid, portfolio-aware runs, and current model lineups across every provider.
 - [2026-08] **TradingAgents v0.4.0** released with look-ahead / point-in-time fixes across FRED macro, social sentiment, and the decision-log memory; clearer decision signals; working CLI checkpoint resume; Trader price grounding; and the GPT-5.6 and GLM-5.3 models.
@@ -55,7 +68,7 @@ Full release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 <div align="center">
 
-🚀 [TradingAgents](#quantagent-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#quantagent-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [Framework](#quantagent-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 📦 [Package Usage](#quantagent-package) | 🔀 [What QuantAgent changes](#what-quantagent-changes) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -63,15 +76,15 @@ Full release notes are in [CHANGELOG.md](CHANGELOG.md).
 >
 > So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
 
-## TradingAgents Framework
+## QuantAgent Framework
 
-TradingAgents is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
+QuantAgent is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
 
 <p align="center">
   <img src="assets/schema.png" style="width: 100%; height: auto;">
 </p>
 
-> TradingAgents framework is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. [It is not intended as financial, investment, or trading advice.](https://tauric.ai/disclaimer/)
+> QuantAgent is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. [It is not intended as financial, investment, or trading advice.](https://tauric.ai/disclaimer/)
 
 Our framework decomposes complex trading tasks into specialized roles.
 
@@ -111,10 +124,11 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### Installation
 
-Clone TradingAgents:
+Clone QuantAgent (or add it as your own fork's remote):
 ```bash
-git clone https://github.com/TauricResearch/TradingAgents.git
+git clone <your-fork-url> TradingAgents
 cd TradingAgents
+git remote -v          # origin = yours, upstream = TauricResearch/TradingAgents
 ```
 
 Create a virtual environment in any of your favorite environment managers:
@@ -129,9 +143,23 @@ uv venv --python 3.12
 source .venv/bin/activate
 ```
 
+Or with plain `venv`:
+```bash
+python -m venv .venv
+.venv/Scripts/activate        # Windows
+source .venv/bin/activate     # macOS / Linux
+```
+
 Install the package and its dependencies (`uv pip install .` with uv):
 ```bash
 pip install .
+```
+
+For development, install editable with the test and lint extras:
+```bash
+pip install -e ".[dev]"
+pytest        # 1007 tests
+ruff check .
 ```
 
 ### Docker
@@ -151,7 +179,7 @@ docker compose --profile ollama run --rm quantagent-ollama
 
 ### Required APIs
 
-TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
+QuantAgent supports multiple LLM providers. Set the API key for your chosen provider:
 
 ```bash
 export OPENAI_API_KEY=...          # OpenAI (GPT)
@@ -181,7 +209,7 @@ For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_pro
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
-For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
+For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `QUANTAGENT_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
 With `TYPESAFE_API_KEY` set, the Sentiment Analyst screens StockTwits and Reddit posts with TypeSafe's Jev before reading them. Posts that are not about the company are dropped, and each source opens with a count of the remaining posts by stance: bullish, bearish, neutral, or unclear. Without the key, posts pass through unscreened. `jev-latest` moves with new releases; set `TYPESAFE_DEFAULT_MODEL` to a versioned ID such as `jev-1.13.0` to hold it fixed across runs.
 
@@ -197,11 +225,11 @@ Launch the interactive CLI:
 quantagent          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
-You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `TRADINGAGENTS_*` variables in `.env` still skip their step entirely.
+You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `QUANTAGENT_*` variables in `.env` still skip their step entirely — the legacy `TRADINGAGENTS_*` names work too.
 
 ### Markets and tickers
 
-TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
+QuantAgent works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
 
 - US: `AAPL`, `SPY`
 - Hong Kong: `0700.HK` · Tokyo: `7203.T` · London: `AZN.L`
@@ -223,21 +251,43 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
-## TradingAgents Package
+## What QuantAgent changes
+
+Everything below is a QuantAgent modification. Everything else — the multi-agent
+graph, the analyst/researcher/risk debate, the vendor router, the decision log,
+the backtest harness — is upstream TradingAgents v0.5.1 as shipped.
+
+**Naming and packaging**
+- Distribution, package and CLI command renamed to `quantagent` / `quantagent`.
+- Public graph class renamed to `QuantAgentGraph`.
+- Settings prefix renamed to `QUANTAGENT_*`. Every legacy `TRADINGAGENTS_*` name
+  is still read, and the CLI's "skip this prompt" checks accept either, so an
+  upstream `.env` keeps working unchanged. The new spelling wins when both are set.
+- State directory moved from `~/.tradingagents` to `~/.quantagent`.
+- See [NOTICE](NOTICE) for the Apache-2.0 derivation record.
+
+**Planned**
+- Chinese-language analyst reports and CLI output, with the English rating
+  vocabulary (`Buy` / `Overweight` / `Hold` / `Underweight` / `Sell`) kept intact
+  so the signal parser and backtest scoring keep working.
+- A-share and Hong Kong data vendors alongside the US ones, which means moving
+  off SEC EDGAR for fundamentals and replacing StockTwits/Reddit for sentiment.
+
+## QuantAgent Package
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built QuantAgent with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
 
 ### Python Usage
 
-To use TradingAgents inside your code, you can import the `quantagent` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
+To use QuantAgent inside your code, you can import the `quantagent` module and initialize a `QuantAgentGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
 
 ```python
-from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.graph.trading_graph import QuantAgentGraph
 from quantagent.default_config import DEFAULT_CONFIG
 
-ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
+ta = QuantAgentGraph(debug=True, config=DEFAULT_CONFIG.copy())
 
 # forward propagate
 _, decision = ta.propagate("NVDA", "2026-09-01")
@@ -247,7 +297,7 @@ print(decision)
 You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
 
 ```python
-from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.graph.trading_graph import QuantAgentGraph
 from quantagent.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
@@ -256,7 +306,7 @@ config["deep_think_llm"] = "gpt-6-sol"    # Model for complex reasoning
 config["quick_think_llm"] = "gpt-6-luna"   # Model for quick tasks
 config["max_debate_rounds"] = 2
 
-ta = TradingAgentsGraph(debug=True, config=config)
+ta = QuantAgentGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2026-09-01")
 print(decision)
 ```
@@ -302,19 +352,19 @@ An empty `positions` list means a flat book, which is different from passing not
 
 ## Persistence and Recovery
 
-TradingAgents persists two kinds of state across runs.
+QuantAgent persists two kinds of state across runs.
 
 ### Decision log
 
-The decision log is always on. Each completed run appends its decision to `~/.quantagent/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw, and alpha against the instrument's regional benchmark), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
+The decision log is always on. Each completed run appends its decision to `~/.quantagent/memory/trading_memory.md`. On the next run for the same ticker, QuantAgent fetches the realised return (raw, and alpha against the instrument's regional benchmark), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
 
-Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
+Override the path with `QUANTAGENT_MEMORY_LOG_PATH` (or the legacy `TRADINGAGENTS_MEMORY_LOG_PATH`).
 
 ### Checkpoint resume
 
 Checkpoint resume is opt-in via `--checkpoint`. When enabled, LangGraph saves state after each node so a crashed or interrupted run resumes from the last successful step instead of starting over. The run view says whether it resumed a saved run or started fresh. Checkpoints are cleared automatically on successful completion.
 
-Per-ticker SQLite databases live at `~/.quantagent/cache/checkpoints/<TICKER>.db` (override the base with `TRADINGAGENTS_CACHE_DIR`). Use `--clear-checkpoints` to reset all of them before a run.
+Per-ticker SQLite databases live at `~/.quantagent/cache/checkpoints/<TICKER>.db` (override the base with `QUANTAGENT_CACHE_DIR`). Use `--clear-checkpoints` to reset all of them before a run.
 
 ```bash
 quantagent --checkpoint           # enable for this run
@@ -324,7 +374,7 @@ quantagent --clear-checkpoints    # reset before running
 ```python
 config = DEFAULT_CONFIG.copy()
 config["checkpoint_enabled"] = True
-ta = TradingAgentsGraph(config=config)
+ta = QuantAgentGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-09-01")
 ```
 
@@ -350,13 +400,13 @@ Each cell is scored on realized alpha against the instrument's regional benchmar
 
 ## Reproducibility
 
-TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.
+QuantAgent is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.
 
 Language model sampling is non-deterministic. Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models (the default GPT-6 family, and any thinking-mode model) vary the most because their internal reasoning is itself sampled.
 
 Live data moves. News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but the social and news sources still reflect "now".
 
-To reduce variation you can lower the sampling temperature. Set `temperature` in your config (or `TRADINGAGENTS_TEMPERATURE` in `.env`); lower values make models that honor it more repeatable. The current curated models are reasoning-first and largely ignore temperature, so for tighter reproducibility name a non-reasoning model in your config, or in `TRADINGAGENTS_DEEP_THINK_LLM` and `TRADINGAGENTS_QUICK_THINK_LLM`. Any model ID your provider serves is accepted, whether or not the picker lists it.
+To reduce variation you can lower the sampling temperature. Set `temperature` in your config (or `QUANTAGENT_TEMPERATURE` in `.env`); lower values make models that honor it more repeatable. The current curated models are reasoning-first and largely ignore temperature, so for tighter reproducibility name a non-reasoning model in your config, or in `QUANTAGENT_DEEP_THINK_LLM` and `QUANTAGENT_QUICK_THINK_LLM`. Any model ID your provider serves is accepted, whether or not the picker lists it.
 
 ```python
 config = DEFAULT_CONFIG.copy()
@@ -376,7 +426,12 @@ Contributions are welcome: bug fixes, documentation, and feature ideas; past con
 
 ## Citation
 
-Please reference our work if you find *TradingAgents* provides you with some help :)
+QuantAgent is a derivative work, so please cite **both** the upstream paper below
+and this fork.
+
+If you use QuantAgent, cite the work it is built on:
+
+> Please reference our work if you find *TradingAgents* provides you with some help :)
 
 ```
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,

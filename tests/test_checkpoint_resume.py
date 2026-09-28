@@ -191,10 +191,10 @@ class TestCheckpointSignature(unittest.TestCase):
         self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date, sig1))
 
     def test_run_signature_captures_graph_shape(self):
-        from quantagent.graph.trading_graph import TradingAgentsGraph
+        from quantagent.graph.trading_graph import QuantAgentGraph
 
         # Build a bare instance to exercise the pure helper without heavy __init__.
-        g = object.__new__(TradingAgentsGraph)
+        g = object.__new__(QuantAgentGraph)
         g.selected_analysts = ("market", "news")
         g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
         base = g._run_signature("stock")

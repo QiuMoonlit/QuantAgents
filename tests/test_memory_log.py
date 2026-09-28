@@ -11,7 +11,7 @@ from quantagent.decision_log import TradingMemoryLog
 from quantagent.graph import settlement
 from quantagent.graph.propagation import Propagator
 from quantagent.graph.reflection import Reflector
-from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.graph.trading_graph import QuantAgentGraph
 
 _SEP = TradingMemoryLog._SEPARATOR
 
@@ -872,8 +872,8 @@ class TestLegacyRemoval:
         assert not hasattr(m, "BM25Okapi")
 
     def test_reflect_and_remember_removed(self):
-        """TradingAgentsGraph must not expose reflect_and_remember."""
-        assert not hasattr(TradingAgentsGraph, "reflect_and_remember")
+        """QuantAgentGraph must not expose reflect_and_remember."""
+        assert not hasattr(QuantAgentGraph, "reflect_and_remember")
 
     def test_portfolio_manager_no_memory_param(self):
         """create_portfolio_manager accepts only llm; passing memory= raises TypeError."""
@@ -918,12 +918,12 @@ class TestLegacyRemoval:
         # Bind the real _run_graph so propagate's call to self._run_graph executes
         # the actual write path instead of the auto-MagicMock.
         mock_graph._run_graph = functools.partial(
-            TradingAgentsGraph._run_graph, mock_graph
+            QuantAgentGraph._run_graph, mock_graph
         )
         mock_graph.record_decision = functools.partial(
-            TradingAgentsGraph.record_decision, mock_graph
+            QuantAgentGraph.record_decision, mock_graph
         )
-        TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
+        QuantAgentGraph.propagate(mock_graph, "NVDA", "2026-01-10")
         entries = mock_graph.memory_log.load_entries()
         assert len(entries) == 1
         assert entries[0]["ticker"] == "NVDA"
@@ -935,9 +935,9 @@ def test_a_failed_reflection_leaves_the_entry_pending_and_lets_the_run_start(tmp
     """Settling past decisions happens on the way into a new run, and reflection
     calls an LLM. A transient failure there must not stop the new analysis."""
     from quantagent.decision_log import TradingMemoryLog
-    from quantagent.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import QuantAgentGraph
 
-    graph = object.__new__(TradingAgentsGraph)
+    graph = object.__new__(QuantAgentGraph)
     graph.config = {"memory_log_path": str(tmp_path / "m.md")}
     graph.memory_log = TradingMemoryLog(graph.config)
     graph.memory_log.store_decision("NVDA", "2026-01-05", "Rating: Buy\n\nx")
@@ -968,9 +968,9 @@ def test_the_holding_window_is_configurable(tmp_path, monkeypatch):
     """A decision written for months should not be graded at a week without the
     operator choosing that window."""
     from quantagent.decision_log import TradingMemoryLog
-    from quantagent.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import QuantAgentGraph
 
-    graph = object.__new__(TradingAgentsGraph)
+    graph = object.__new__(QuantAgentGraph)
     graph.config = {"memory_log_path": str(tmp_path / "m.md"), "holding_period_days": 21}
     graph.memory_log = TradingMemoryLog(graph.config)
     graph.memory_log.store_decision("NVDA", "2026-01-05", "**Rating**: Buy\n\nx")

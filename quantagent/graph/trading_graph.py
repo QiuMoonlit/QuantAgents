@@ -40,7 +40,7 @@ def _validate_trade_date(trade_date) -> str:
     return value
 
 
-class TradingAgentsGraph:
+class QuantAgentGraph:
     """Main class that orchestrates the trading agents framework."""
 
     def __init__(
@@ -377,7 +377,7 @@ class TradingAgentsGraph:
 
         # A ticker that would escape the results directory is rejected.
         safe_ticker = safe_ticker_component(final_state["company_of_interest"])
-        directory = Path(self.config["results_dir"]) / safe_ticker / "TradingAgentsStrategy_logs"
+        directory = Path(self.config["results_dir"]) / safe_ticker / "QuantAgentStrategy_logs"
         directory.mkdir(parents=True, exist_ok=True)
 
         log_path = directory / f"full_states_log_{trade_date}.json"

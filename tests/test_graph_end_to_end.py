@@ -116,7 +116,7 @@ def _graph(tmp_path, monkeypatch, model, **config):
     cfg.update(results_dir=str(tmp_path / "results"), data_cache_dir=str(tmp_path / "cache"),
                memory_log_path=str(tmp_path / "log.md"), **config)
     monkeypatch.setattr(trading_graph, "create_llm_client", lambda **k: _Client(model))
-    return trading_graph.TradingAgentsGraph(config=cfg)
+    return trading_graph.QuantAgentGraph(config=cfg)
 
 
 @pytest.mark.unit
@@ -166,4 +166,4 @@ def test_a_graph_reused_across_runs_keeps_no_run_state(tmp_path, monkeypatch, of
 
     held = [v for v in vars(graph).values() if isinstance(v, dict) and TRADE_DATE in v]
     assert held == []
-    assert len(list(tmp_path.glob("results/NVDA/TradingAgentsStrategy_logs/*.json"))) == 2
+    assert len(list(tmp_path.glob("results/NVDA/QuantAgentStrategy_logs/*.json"))) == 2

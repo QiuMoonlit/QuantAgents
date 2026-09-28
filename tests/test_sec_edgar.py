@@ -225,7 +225,7 @@ def test_the_default_identification_tracks_the_installed_version(monkeypatch):
     """A release should identify itself, not a version frozen in the source."""
     monkeypatch.delenv("SEC_EDGAR_USER_AGENT", raising=False)
     monkeypatch.setattr(sec_edgar.metadata, "version", lambda name: "9.9.9")
-    assert sec_edgar._user_agent() == "TradingAgents/9.9.9 (contact@example.com)"
+    assert sec_edgar._user_agent() == "QuantAgent/9.9.9 (contact@example.com)"
 
 
 @pytest.mark.unit

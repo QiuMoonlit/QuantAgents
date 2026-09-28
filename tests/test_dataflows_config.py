@@ -64,9 +64,9 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
 # --- the config of the run in progress (#1369) --------------------------------
 
 def _graph(config):
-    from quantagent.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import QuantAgentGraph
 
-    g = object.__new__(TradingAgentsGraph)
+    g = object.__new__(QuantAgentGraph)
     g.config = config
     g._checkpointer_ctx = None
     return g

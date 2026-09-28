@@ -4,7 +4,7 @@ services:
     env_file:
       - .env
     volumes:
-      - tradingagents_data:/home/appuser/.quantagent
+      - quantagent_data:/home/appuser/.quantagent
     tty: true
     stdin_open: true
 
@@ -20,10 +20,10 @@ services:
     env_file:
       - .env
     environment:
-      - TRADINGAGENTS_LLM_PROVIDER=ollama
+      - QUANTAGENT_LLM_PROVIDER=ollama
       - OLLAMA_BASE_URL=http://ollama:11434/v1
     volumes:
-      - tradingagents_data:/home/appuser/.quantagent
+      - quantagent_data:/home/appuser/.quantagent
     depends_on:
       - ollama
     tty: true
@@ -32,5 +32,5 @@ services:
       - ollama
 
 volumes:
-  tradingagents_data:
+  quantagent_data:
   ollama_data:

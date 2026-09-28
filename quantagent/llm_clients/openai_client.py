@@ -285,14 +285,14 @@ class OpenAIClient(BaseLLMClient):
             chat_cls = spec.chat_class
 
             # base_url precedence: explicit client base_url (carries the config /
-            # TRADINGAGENTS_LLM_BACKEND_URL value) > provider env override (e.g.
+            # QUANTAGENT_LLM_BACKEND_URL value) > provider env override (e.g.
             # OLLAMA_BASE_URL) > provider default. None means use the SDK default.
             env_base_url = os.environ.get(spec.base_url_env) if spec.base_url_env else None
             base_url = self.base_url or env_base_url or spec.base_url
             if spec.require_base_url and not base_url:
                 raise ValueError(
                     f"Provider '{self.provider}' requires a base_url. Set it via "
-                    "backend_url / TRADINGAGENTS_LLM_BACKEND_URL to your endpoint, "
+                    "backend_url / QUANTAGENT_LLM_BACKEND_URL to your endpoint, "
                     "e.g. http://localhost:8000/v1 (vLLM) or http://localhost:1234/v1 "
                     "(LM Studio)."
                 )

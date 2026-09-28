@@ -2,10 +2,10 @@ from .conditional_logic import ConditionalLogic
 from .propagation import Propagator
 from .reflection import Reflector
 from .setup import GraphSetup
-from .trading_graph import TradingAgentsGraph
+from .trading_graph import QuantAgentGraph
 
 __all__ = [
-    "TradingAgentsGraph",
+    "QuantAgentGraph",
     "ConditionalLogic",
     "GraphSetup",
     "Propagator",

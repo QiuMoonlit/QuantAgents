@@ -84,9 +84,9 @@ def test_memory_as_of_gates_historical_but_not_live():
     # None so live behavior and legacy entries are unaffected (#1251).
     from datetime import datetime, timedelta
 
-    from quantagent.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import QuantAgentGraph
 
-    g = object.__new__(TradingAgentsGraph)
+    g = object.__new__(QuantAgentGraph)
     past = "2024-01-01"
     today = datetime.now().strftime("%Y-%m-%d")
     future = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
