@@ -184,8 +184,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     # Header with welcome message
     layout["header"].update(
         Panel(
-            "[bold green]Welcome to QuantAgent CLI[/bold green]\n"
-            "[dim]© 2026 [qiumoonlit](https://github.com/QiuMoonlit/moon) and QuantAgent contributors[/dim]",
+            "[bold green]Welcome to QuantAgent CLI[/bold green]",
             title="Welcome to QuantAgent",
             border_style="green",
             padding=(1, 2),

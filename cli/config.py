@@ -8,5 +8,5 @@ CLI_CONFIG = {
     # endpoint to use the feature.
     "announcements_url": "",
     "announcements_timeout": 1.0,
-    "announcements_fallback": "[cyan]For more information, please visit[/cyan] [link=https://github.com/QiuMoonlit/moon]https://github.com/QiuMoonlit/moon[/link]",
+    "announcements_fallback": "[cyan]For more information, please visit[/cyan] [link=https://github.com/QiuMoonlit/QuantAgents]https://github.com/QiuMoonlit/QuantAgents[/link]",
 }
