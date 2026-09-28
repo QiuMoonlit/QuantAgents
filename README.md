@@ -1,542 +1,698 @@
 <div align="center">
   <h1>QuantAgent</h1>
-  <p><b>A multi-agent LLM trading research framework, with A-share and Hong Kong market data.</b></p>
+  <p><b>多智能体 LLM 交易研究框架 —— 原生支持 A 股与港股</b></p>
 </div>
 
 ---
 
 # QuantAgent
 
-Four analyst agents gather market, news, fundamental and retail-sentiment
-evidence in parallel. A bull and a bear debate it. A research manager rules on
-the debate, a trader proposes an action, three risk agents stress-test it, and
-a portfolio manager issues the final rating. Every agent's reasoning is written
-to a decision log, and past decisions are settled against realised prices so the
-framework can learn from its own track record.
+一个多智能体大模型交易研究框架。四个分析师智能体并行收集行情、新闻、基本面与散户情绪证据，多空双方就这些证据展开辩论，研究主管裁决，Trader 提出交易动作，三位风控智能体对方案做压力测试，最后由投资组合经理给出评级。
 
-It runs against US markets and against A-shares and Hong Kong. Chinese tickers
-get their own price history, financial statements under 中国企业会计准则,
-per-stock news, and retail sentiment from 东方财富股吧 — not two English-language
-platforms that carry nothing about a 600519.
+整个决策过程写入决策日志；历史决策在其持有窗口走完之后会被结算出实际收益，与基准对比算出 alpha，并生成一段复盘反思注入下一次分析。**框架会从自己的历史决策里学习。**
 
-Reports are written in Chinese while the machine-read rating vocabulary stays
-English, so the signal parser, the decision log and the backtest scorer all
-agree on one spelling.
+除了美股，QuantAgent 同时支持 **A 股与港股**。中国标的会拿到自己的价格历史、**中国企业会计准则**下的财务报表、个股新闻，以及来自**东方财富股吧**的散户情绪 —— 而不是让两个对 `600519` 一无所知的英文平台去回答"这只股票怎么样"。
 
-> **QuantAgent is a research tool, not financial advice.** Nothing it outputs is
-> a recommendation to buy or sell anything. Trading performance depends on the
-> backbone models, temperature, period, data quality, and other
-> non-deterministic factors.
+分析报告用中文输出，而机器可读的评级词表保持英文，这样信号解析器、决策日志和回测评分器对同一个结论的拼写永远一致。
 
-## Quick start
+> **QuantAgent 是研究工具，不构成任何投资建议。** 它的输出不构成买入或卖出任何证券的建议。实际表现取决于所用大模型、采样温度、时间区间、数据质量等多种因素，存在不可消除的随机性。请自行判断并承担风险。
 
-```bash
-pip install -e ".[web,cn]"
+---
 
-export DEEPSEEK_API_KEY=sk-...
-export QUANTAGENT_LLM_PROVIDER=deepseek
-export QUANTAGENT_OUTPUT_LANGUAGE="Simplified Chinese"
+## 目录
 
-quantagent            # terminal
-quantagent-web        # http://127.0.0.1:8420
+- [核心能力](#核心能力)
+- [多智能体架构](#多智能体架构)
+- [安装](#安装)
+- [快速开始](#快速开始)
+- [网页界面](#网页界面)
+- [命令行使用](#命令行使用)
+- [Python 调用](#python-调用)
+- [配置说明](#配置说明)
+- [A 股与港股支持](#a-股与港股支持)
+- [情绪数据源](#情绪数据源)
+- [已知缺口](#已知缺口)
+- [当前持仓](#当前持仓)
+- [持久化与恢复](#持久化与恢复)
+- [回测](#回测)
+- [可复现性](#可复现性)
+- [开发](#开发)
+- [致谢与许可](#致谢与许可)
+
+---
+
+## 核心能力
+
+| 能力 | 说明 |
+|---|---|
+| **多智能体协作** | 21 个节点的 LangGraph 工作流：4 个分析师并行、多空辩论、风险辩论、投资组合经理裁决 |
+| **A 股 / 港股** | 行情、技术指标、财务三大表（中国企业会计准则）、个股新闻、散户情绪、结算价格全覆盖 |
+| **中文报告** | 分析报告与最终决策中文输出；评级词表保持英文，保证机器可解析 |
+| **网页界面** | 深色终端风格 UI，SSE 实时流式展示每个智能体的进度，可中途中止 |
+| **真实可中止** | 中止会真正终止服务端工作线程与后续 LLM 调用，不是前端假象 |
+| **成本可见** | 实时显示模型调用次数、Token 用量与预估费用 |
+| **决策日志** | 每次运行落盘，历史决策自动结算 alpha 并生成反思复盘 |
+| **断点续跑** | 可选 LangGraph checkpoint，崩溃或中断后从最后一步继续 |
+| **回测** | 在「代码 × 日期」网格上跑同一套流程，按评级分组统计实际 alpha |
+| **多模型供应商** | OpenAI、Anthropic、Google、xAI、DeepSeek、通义、智谱、MiniMax、OpenRouter、Ollama 本地模型、Azure OpenAI、AWS Bedrock，以及任何 OpenAI 兼容端点 |
+
+---
+
+## 多智能体架构
+
+```
+                    ┌─────────────────────────────────────┐
+                    │           分析师团队 (并行)            │
+                    │                                     │
+                    │  技术分析师 ─┐                        │
+                    │  新闻分析师 ─┤                        │
+                    │  基本面分析师─┼─→ 同时执行 ────────────┤
+                    │  情绪分析师 ─┘                        │
+                    └─────────────────────────────────────┘
+                                     │
+                    ┌────────────────┴────────────────┐
+                    │          多空辩论 (N 轮)           │
+                    │   看多研究员 ⇄ 看空研究员          │
+                    └────────────────┬────────────────┘
+                                     │
+                              研究主管裁决
+                                     │
+                               Trader 制定
+                                     │
+                    ┌────────────────┴────────────────┐
+                    │          风控辩论 (M 轮)           │
+                    │  激进 ⇄ 保守 ⇄ 中立               │
+                    └────────────────┬────────────────┘
+                                     │
+                            投资组合经理裁决
+                                     │
+                          最终评级 + 写入决策日志
 ```
 
-Then analyse `600519.SS`, `0700.HK` or `NVDA`. Full setup, including the
-Windows CA-bundle workaround and the A-share coverage table, is below.
+**关键设计点**
 
-<div align="center">
+- **分析师并行执行**，不是串行。四个分析师同时跑，状态面板会如实显示"三个正在运行"，而不是靠名单顺序猜。
+- **多空辩论是可选的**。设为 0 轮时，分析师报告直接交给研究主管。
+- **研究主管有裁决 ⇒ 多空辩论必然已结束**。即使辩论轮数为 0、history 为空，状态机也能正确推断这一点。
+- **评级是结构化传递的**。投资组合经理输出的是结构化对象，其 `final_rating` 字段单独经 state 传到信号层，不再依赖解析英文散文。这是兜底路径，不是主路径。
 
-🚀 [Framework](#quantagent-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🌐 [Web UI](#web-ui) | 📦 [Package Usage](#quantagent-package) | 🔀 [What this project adds](#what-this-project-adds) | 🤝 [Contributing](#contributing) | 📄 [Credits](#credits)
+---
 
-</div>
-## QuantAgent Framework
+## 安装
 
-QuantAgent is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
+### 环境要求
 
-<p align="center">
-  <img src="assets/schema.png" style="width: 100%; height: auto;">
-</p>
+- Python **3.10+**（开发使用 3.12）
+- 至少一个 LLM 供应商的 API Key
 
-> QuantAgent is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. It is not intended as financial, investment, or trading advice.
-
-Our framework decomposes complex trading tasks into specialized roles.
-
-### Analyst Team
-- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
-- Sentiment Analyst: Aggregates news and retail chatter into a single sentiment read to gauge short-term market mood. The platforms are the ones the market actually uses: StockTwits and Reddit for US tickers, 东方财富股吧 for Chinese ones.
-- News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
-- Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
-
-<p align="center">
-  <img src="assets/analyst.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-### Researcher Team
-- Comprises both bullish and bearish researchers who critically assess the insights provided by the Analyst Team. Through structured debates, they balance potential gains against inherent risks.
-
-<p align="center">
-  <img src="assets/researcher.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-### Trader Agent
-- Composes reports from the analysts and researchers to make informed trading decisions, determining the timing and magnitude of trades.
-
-<p align="center">
-  <img src="assets/trader.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-### Risk Management and Portfolio Manager
-- Continuously evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. The risk management team evaluates and adjusts trading strategies, providing assessment reports to the Portfolio Manager for final decision.
-- The Portfolio Manager approves/rejects the transaction proposal. If approved, the order will be sent to the simulated exchange and executed.
-
-<p align="center">
-  <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-## Installation and CLI
-
-### Installation
+### 基础安装
 
 ```bash
 git clone https://github.com/QiuMoonlit/moon.git
-cd QuantAgent
+cd moon
 ```
 
-Create a virtual environment in any of your favorite environment managers:
+创建虚拟环境（三选一）：
+
 ```bash
+# conda
 conda create -n quantagent python=3.12
 conda activate quantagent
-```
 
-Or with [uv](https://docs.astral.sh/uv/):
-```bash
+# uv
 uv venv --python 3.12
-source .venv/bin/activate
-```
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-Or with plain `venv`:
-```bash
+# venv
 python -m venv .venv
-.venv/Scripts/activate        # Windows
-source .venv/bin/activate     # macOS / Linux
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 ```
 
-Install the package and its dependencies (`uv pip install .` with uv):
+安装：
+
 ```bash
+# 最小安装（终端版）
 pip install .
+
+# 完整安装：网页界面 + A股/港股数据 + 开发工具
+pip install -e ".[web,cn,dev]"
+
+# 支持 AWS Bedrock
+pip install -e ".[bedrock]"
 ```
 
-For development, install editable with the test and lint extras:
-```bash
-pip install -e ".[dev]"
-pytest        # 1188 tests
-ruff check .
-```
+### Windows:两个必须知道的坑
 
-### Windows: the project folder must not contain non-ASCII characters
+#### 坑一:项目路径含非 ASCII 字符 → 行情请求全部失败
 
-yfinance reaches Yahoo through curl_cffi, whose native layer decodes file paths
-using the process ANSI code page. When the checkout lives in a folder whose name
-has non-ASCII characters (a Chinese folder name, for instance), `certifi.where()`
-comes back mangled and every market-data call fails before reaching the network:
+yfinance 通过 curl_cffi 访问 Yahoo，而 curl_cffi 的原生层用系统 ANSI 代码页解码文件路径。当项目位于含中文的目录下时，`certifi.where()` 返回的路径是乱码的：
 
 ```
 curl_cffi.requests.exceptions.SSLError: curl: (77) error adding trust anchors
 ```
 
-Nothing else is wrong — the bundle is present and valid, curl just cannot read
-the path. Copy the bundle to an ASCII-only location and point curl at it:
+**证书文件本身是好的**，curl 只是读不了那个路径。解决办法是把证书复制到纯 ASCII 路径：
 
 ```bash
 python scripts\fix_ca_bundle.py
 ```
 
-Then set the path it prints in your `.env`:
+然后把脚本打印出来的路径写进 `.env`：
 
 ```
-CURL_CA_BUNDLE=C:\Users\<you>\quantagent-cacert.pem
+CURL_CA_BUNDLE=C:\Users\<你的用户名>\quantagent-cacert.pem
 ```
 
-Re-run the script after recreating the virtualenv. Moving the checkout to an
-ASCII path (e.g. `C:\src\QuantAgent`) avoids the problem entirely.
+> 重建虚拟环境后需要重跑一次这个脚本。或者干脆把项目移到纯 ASCII 路径（如 `C:\src\QuantAgent`），一劳永逸。
 
-### Web UI
+#### 坑二:状态目录不可写 → 运行中途崩溃
 
-A dark terminal-style web interface ships with the project. It runs the same
-multi-agent graph and streams progress over SSE, so you can watch each analyst
-and debater light up as it finishes instead of sitting at a terminal.
+QuantAgent 默认把缓存、结果、决策日志写在 `~/.quantagent`。在**普通终端**里这是对的；但在**沙箱、容器或受限上下文**中，用户主目录不在可写范围内，运行会在图构建阶段抛出：
+
+```
+PermissionError: [WinError 5] 拒绝访问: 'C:\Users\<你>\.quantagent\cache'
+```
+
+如果遇到，把三个状态路径指向项目内部：
+
+```env
+QUANTAGENT_RESULTS_DIR=.\state\logs
+QUANTAGENT_CACHE_DIR=.\state\cache
+QUANTAGENT_MEMORY_LOG_PATH=.\state\memory\trading_memory.md
+```
+
+v0.6.0 起，网页界面会在**启动时自检**这两个目录（写入并删除一个探针文件 —— 目录存在不等于可写，Windows 上只读 ACL 才是常见情况），并在 `/api/config` 暴露 `state_dirs_writable`。不可写时 `/api/analyze` 直接返回 **503 并说明是哪个路径、怎么修**，而不是让你等三十秒、花完钱再失败。
+
+### Docker
 
 ```bash
-pip install -e ".[web]"      # adds FastAPI + uvicorn
-quantagent-web               # http://127.0.0.1:8420
+cp .env.example .env          # 填入你的 API Key
+docker compose run --rm quantagent
 ```
 
-Or drive uvicorn directly:
+拉取仓库更新后需重建镜像：`docker compose build`。
+
+用 Ollama 跑本地模型：
+
+```bash
+docker compose --profile ollama run --rm quantagent-ollama
+```
+
+---
+
+## 快速开始
+
+```bash
+cp .env.example .env
+```
+
+最小配置（DeepSeek + 中文输出）：
+
+```env
+DEEPSEEK_API_KEY=sk-...
+QUANTAGENT_LLM_PROVIDER=deepseek
+QUANTAGENT_DEEP_THINK_LLM=deepseek-reasoner
+QUANTAGENT_QUICK_THINK_LLM=deepseek-chat
+QUANTAGENT_OUTPUT_LANGUAGE=Simplified Chinese
+```
+
+```bash
+quantagent            # 终端版
+quantagent-web        # 网页版 → http://127.0.0.1:8420
+```
+
+然后分析 `600519.SS`、`0700.HK` 或 `NVDA`。
+
+### 先花两秒验证数据链路
+
+跑一次完整分析要几分钟。启动前想先确认网络通不通：
+
+```bash
+python -c "from quantagent.dataflows.vendors.akshare.market import get_cn_stock_data; print(get_cn_stock_data('600519.SS','2026-08-20','2026-09-02')[:400])"
+```
+
+能出表格说明行情源可达。**如果报 `ProxyError`，说明本地代理没启动** —— 在部分网络环境下访问国内行情源必须走代理。
+
+---
+
+## 网页界面
+
+```bash
+pip install -e ".[web]"
+quantagent-web                       # http://127.0.0.1:8420
+```
+
+或直接用 uvicorn：
 
 ```bash
 uvicorn quantagent.web.server:app --port 8420
 ```
 
-**What it does**
+### 界面构成
 
-- Left rail: ticker, analysis date, which analysts to run, debate round counts.
-  Everything pre-filled from `.env` / `DEFAULT_CONFIG`.
-- Centre: the five agent teams, each agent going `pending → running → done` as
-  the graph advances, with the live-updating report panel below.
-- Final decision card with the parsed rating, colour-coded
-  (Buy/Overweight green, Hold amber, Underweight/Sell red).
-- A second tab reads the decision log written to
-  `~/.quantagent/memory/trading_memory.md`.
+- **左栏**：股票代码、分析日期、要运行的分析师、辩论轮数。全部预填自 `.env` / `DEFAULT_CONFIG`。
+- **中部**：五个智能体团队，每个智能体随图推进在 `等待中 → 分析中 → 已完成` 之间切换，下方报告面板实时刷新。
+- **最终决策卡**：解析出的评级，按颜色区分（买入/增持 绿、持有 橙、减持/卖出 红）。
+- **第二个页签**：读取写入 `state/memory/trading_memory.md` 的决策日志。
+- **右上角**：模型调用次数、Token 用量、预估费用、耗时。
 
-**How it works.** `quantagent/graph/propagation.py` already runs the graph with
-`stream_mode="values"`, so every node completion yields the full state.
-`quantagent/web/server.py` diffs that state to decide which agent just
-finished, then pushes an SSE frame. No changes to the graph, the agents, or the
-vendor layer were needed — the terminal TUI consumes the same stream.
+### 实现原理
 
-Runs are serialised behind a single lock: the vendor router and the decision log
-hold process-level state, so two concurrent runs would interleave. One analysis
-at a time, which is also how the LLM cost works out.
+`quantagent/graph/propagation.py` 本来就以 `stream_mode="values"` 运行图，因此每个节点完成时都会产出完整状态。`quantagent/web/server.py` 对状态做差分来判断哪个智能体刚刚完成，然后推送一个 SSE 帧。
 
-**Not included:** no auth, no multi-user isolation, and it binds to loopback.
-Put it behind a reverse proxy with auth before binding it to anything but
-`127.0.0.1`.
+**图、智能体、数据供应商层都没有为此做过改动** —— 终端 TUI 消费的是同一个流。
 
-### Docker
+SSE 断线会自动重连，事件有缓冲可重放，`/api/runs/{run_id}` 可回查任意运行的状态。
 
-Alternatively, run with Docker:
-```bash
-cp .env.example .env  # add your API keys
-docker compose run --rm quantagent
-```
+### 并发模型
 
-After updating the repository, rebuild the image with `docker compose build`.
+运行之间由单锁串行化：供应商路由和决策日志持有进程级状态，两次并发运行会互相穿插。**一次一个分析**，这也正好符合 LLM 成本的使用方式。排队时界面会显示"排队中"状态。
 
-For local models with Ollama:
-```bash
-docker compose --profile ollama run --rm quantagent-ollama
-```
+### 安全边界
 
-### Required APIs
+**不包含**：无身份认证、无多用户隔离，且只绑定回环地址。**在绑定到 `127.0.0.1` 以外的任何地址之前，请先放在带认证的反向代理后面。**
 
-QuantAgent supports multiple LLM providers. Set the API key for your chosen provider:
+---
+
+## 命令行使用
 
 ```bash
-export OPENAI_API_KEY=...          # OpenAI (GPT)
-export GOOGLE_API_KEY=...          # Google (Gemini)
-export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
-export XAI_API_KEY=...             # xAI (Grok)
-export DEEPSEEK_API_KEY=...        # DeepSeek
-export DASHSCOPE_API_KEY=...       # Qwen — International (dashscope-intl.aliyuncs.com)
-export DASHSCOPE_CN_API_KEY=...    # Qwen — China (dashscope.aliyuncs.com)
-export ZHIPU_API_KEY=...           # GLM via Z.AI (international)
-export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
-export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io)
-export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com)
-export OPENROUTER_API_KEY=...      # OpenRouter
-export MISTRAL_API_KEY=...         # Mistral
-export MOONSHOT_API_KEY=...        # Kimi (Moonshot)
-export GROQ_API_KEY=...            # Groq
-export NVIDIA_API_KEY=...          # NVIDIA NIM
-export FRED_API_KEY=...            # FRED macro data (free, optional)
-export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
-export TYPESAFE_API_KEY=...        # Jev social-post screening (optional)
+quantagent                 # 安装后的命令
+python -m cli.main         # 从源码直接运行
 ```
 
-For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
+界面会让你依次选择股票代码、分析日期、LLM 供应商、研究深度等。**上一次运行的答案会作为默认值回填**，直接回车即可接受。
 
-For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, configure AWS credentials (environment variables, `~/.aws/credentials`, or an IAM role) and `AWS_DEFAULT_REGION`, and use a Bedrock model ID, e.g. `us.anthropic.claude-opus-4-8-v1:0`.
+`.env` 里的 `QUANTAGENT_*` 变量会**直接跳过对应的提问步骤**。旧前缀 `TRADINGAGENTS_*` 同样被识别，因此老 `.env` 无需修改即可继续使用；两者同时设置时以新写法为准。
 
-For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
+### 常用参数
 
-For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `QUANTAGENT_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
-
-With `TYPESAFE_API_KEY` set, the Sentiment Analyst screens StockTwits and Reddit posts with TypeSafe's Jev before reading them. Posts that are not about the company are dropped, and each source opens with a count of the remaining posts by stance: bullish, bearish, neutral, or unclear. Without the key, posts pass through unscreened. `jev-latest` moves with new releases; set `TYPESAFE_DEFAULT_MODEL` to a versioned ID such as `jev-1.13.0` to hold it fixed across runs.
-
-Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
-cp .env.example .env
+quantagent --checkpoint            # 启用断点续跑
+quantagent --clear-checkpoints     # 运行前重置全部 checkpoint
+quantagent --portfolio my_book.json # 传入当前持仓
+quantagent backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
 ```
 
-### CLI Usage
+### 支持的市场与代码格式
 
-Launch the interactive CLI:
-```bash
-quantagent          # installed command
-python -m cli.main     # alternative: run directly from source
-```
-You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `QUANTAGENT_*` variables in `.env` still skip their step entirely — the legacy `TRADINGAGENTS_*` names work too.
+| 市场 | 代码格式 | 示例 |
+|---|---|---|
+| A 股（上海） | `.SS` | `600519.SS` 贵州茅台、`601318.SS` 中国平安 |
+| A 股（深圳） | `.SZ` | `000001.SZ` 平安银行、`300750.SZ` 宁德时代 |
+| 港股 | `.HK` | `0700.HK` 腾讯、`09992.HK` 美团 |
+| 美股 | 无后缀 | `NVDA`、`AAPL` |
+| 日股 | `.T` | `7203.T` |
+| 英股 | `.L` | `AZN.L` |
+| 印股 | `.NS` / `.BO` | `RELIANCE.NS` |
+| 加密货币 | `-USD` | `BTC-USD`、`ETH-USD` |
 
-### Markets and tickers
+> **请带上交易所后缀。** A 股裸代码（如 `600519`）在 AkShare 数据源里能正确解析，但公司身份查询走的是另一条链路，需要后缀才会返回结果。
 
-QuantAgent works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
+---
 
-- US: `AAPL`, `SPY`
-- Hong Kong: `0700.HK` · Tokyo: `7203.T` · London: `AZN.L`
-- India: `RELIANCE.NS`, `.BO` · Canada: `.TO` · Australia: `.AX`
-- China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
-- Crypto: `BTC-USD`, `ETH-USD`
-
-<p align="center">
-  <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-An interface will appear showing results as they load, letting you track the agent's progress as it runs.
-
-<p align="center">
-  <img src="assets/cli/cli_news.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-<p align="center">
-  <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-## What this project adds
-
-QuantAgent is a derived work — see [NOTICE](NOTICE) for the Apache-2.0
-derivation record and attribution. The multi-agent graph, the
-analyst/researcher/risk debate, the vendor router, the decision log and the
-backtest harness are the inherited framework. Everything below is what this
-project adds on top.
-
-**Naming and packaging**
-- Distribution, package and CLI command: `quantagent` / `quantagent`.
-- Public graph class: `QuantAgentGraph`.
-- Settings prefix: `QUANTAGENT_*`. Every legacy `TRADINGAGENTS_*` name is still
-  read, and the CLI's "skip this prompt" checks accept either, so an older
-  `.env` keeps working unchanged. The new spelling wins when both are set.
-- State directory: `~/.quantagent`.
-
-**Planned**
-- Chinese-language analyst reports and CLI output beyond what shipped in
-  v0.6.0 — the narrative is already localized, the CLI chrome is not.
-
-**A-share / Hong Kong market data (partial)**
-
-`pip install -e ".[cn]"` and point the relevant categories at `akshare`:
-
-```powershell
-config["data_vendors"]["core_stock_apis"] = "akshare,yfinance"
-config["data_vendors"]["technical_indicators"] = "akshare,yfinance"
-config["data_vendors"]["fundamental_data"] = "akshare,yfinance"
-config["data_vendors"]["news_data"] = "akshare,yfinance"
-config["data_vendors"]["sentiment_data"] = "akshare,yfinance"
-```
-
-Wired: daily OHLCV, stockstats indicators, balance sheet / income statement /
-cash flow under 中国企业会计准则, headline metrics, the settlement price
-series, per-stock news, retail sentiment from 东方财富股吧, and the market
-analyst's verified price snapshot. Tickers use the normal spellings —
-`600519.SS`, `000001.SZ`, `0700.HK`. A US ticker falls out of the AkShare
-vendor with `NoMarketDataError` and continues down the chain, so the two can be
-listed in one config, which is the default.
-
-**Not wired yet** — these still resolve to the US vendors, and an A-share run
-will degrade rather than fail:
-
-| Gap | Effect on a Chinese ticker |
-|---|---|
-| Insider transactions | Form 4 has no A-share equivalent; 董监高持股变动 is a different disclosure with a different cadence. Not implemented. |
-| Macro indicators | The News Analyst's macro tool is FRED, which is US-only. Chinese macro (PMI, 社融, LPR) is not wired. Global *news* now falls back to a Baidu economic digest. |
-| Hong Kong statements | Price, indicators, news and sentiment work for `.HK`; fundamentals are not served by the underlying vendor and say so. |
-| Trading calendar | `MAX_OHLCV_STALE_DAYS` was raised to 20 so Chinese holidays do not read as stale, but there is still no real exchange calendar — `date_window.py` is plain calendar arithmetic and `settlement.py`'s holding-window estimate is tuned for Western holidays. |
-
-### Sentiment, for what it is
-
-The Chinese source is 东方财富股吧 (Eastmoney's per-stock forum), which is the
-institutional equivalent of the StockTwits/Reddit pair. It is **not** a message
-stream — there are no per-stock posts to read — so what it offers is a set of
-indices:
-
-| Signal | What it means |
-|---|---|
-| 用户关注指数 (attention index) | How much the retail forum is following, 30 trading days. Attention, not direction. |
-| 综合得分 / 机构参与度 / 主力成本 | A per-stock scorecard. 主力成本 is the crowd's cost basis, which is **not** a price target — the output says so, because it reads like one. |
-| 人气排名 + 新晋粉丝/铁杆粉丝 | The popularity ranking over time, split into fans who chase and fans who hold. A rise in 新晋粉丝 with no price response is retail flow, not conviction. |
-
-雪球 (Xueqiu) is deliberately not used: AkShare's Xueqiu endpoints are
-hot-topic and holdings screens, not a per-stock message stream —
-`stock_hot_tweet_xq(symbol="SH600519")` raises `KeyError` because it only
-serves a global trending list. Claiming a Xueqiu feed would be fiction.
-
-A partial outage keeps what worked and lists what did not; a total one raises
-rather than handing the analyst an empty block.
-
-### Two things that look like gaps and are not
-
-*Company profile.* `agents/context.py` still reads the instrument identity
-(name, sector, industry, exchange) from the Yahoo vendor, and it works for
-Chinese tickers — `600519.SS` resolves to Kweichow Moutai / Consumer Defensive,
-`0700.HK` to Tencent Holdings. Verified, not assumed.
-
-*Ticker spelling.* Pass the exchange suffix: `600519.SS`, `000001.SZ`,
-`0700.HK`. A bare `600519` reaches the AkShare vendor correctly, but the
-identity lookup asks Yahoo, which needs the suffix and returns nothing without
-it.
-
-**Added in v0.6.0**
-- A web UI (`quantagent.web`) with SSE progress streaming — see
-  [Web UI](#web-ui).
-- `CURL_CA_BUNDLE` fix for checkouts under a non-ASCII path — see
-  [Windows](#windows-the-project-folder-must-not-contain-non-ascii-characters).
-
-## QuantAgent Package
-
-### Implementation Details
-
-We built QuantAgent with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
-
-### Python Usage
-
-To use QuantAgent inside your code, you can import the `quantagent` module and initialize a `QuantAgentGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
+## Python 调用
 
 ```python
 from quantagent.graph.trading_graph import QuantAgentGraph
 from quantagent.default_config import DEFAULT_CONFIG
 
 ta = QuantAgentGraph(debug=True, config=DEFAULT_CONFIG.copy())
-
-# forward propagate
-_, decision = ta.propagate("NVDA", "2026-09-01")
+_, decision = ta.propagate("600519.SS", "2026-09-01")
 print(decision)
 ```
 
-You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
+自定义配置：
 
 ```python
-from quantagent.graph.trading_graph import QuantAgentGraph
-from quantagent.default_config import DEFAULT_CONFIG
-
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, deepseek, groq, ollama; openai_compatible covers any OpenAI-compatible endpoint (vLLM, LM Studio, llama.cpp, ...)
-config["deep_think_llm"] = "gpt-6-sol"    # Model for complex reasoning
-config["quick_think_llm"] = "gpt-6-luna"   # Model for quick tasks
+config["llm_provider"] = "deepseek"
+config["deep_think_llm"] = "deepseek-reasoner"   # 复杂推理
+config["quick_think_llm"] = "deepseek-chat"      # 快速任务
 config["max_debate_rounds"] = 2
+config["max_risk_discuss_rounds"] = 2
 
 ta = QuantAgentGraph(debug=True, config=config)
-_, decision = ta.propagate("NVDA", "2026-09-01")
-print(decision)
+_, decision = ta.propagate("600519.SS", "2026-09-01")
 ```
 
-See `quantagent/default_config.py` for all configuration options.
+全部配置项见 `quantagent/default_config.py`。
 
-### Fundamentals as filed
+### 只选部分智能体
 
-US company statements can come from SEC EDGAR, which records the date every figure was filed. A run dated in the past then reads the statements exactly as they stood that day: a fiscal year that has ended but has not been filed yet is not served, and a figure restated later still reads as first reported. Apple's 2008 total assets were filed as $39.6B and restated to $36.2B in 2010, so a run dated in between reads $39.6B.
-
-EDGAR needs no account or API key. Add the vendor to the chain:
+分析师的选择是**构造参数**，不是 `propagate()` 的参数：
 
 ```python
-config["data_vendors"]["fundamental_data"] = "sec_edgar,yfinance"
+ta = QuantAgentGraph(
+    selected_analysts=["market", "social"],
+    config=DEFAULT_CONFIG.copy(),
+)
+_, decision = ta.propagate("600519.SS", "2026-09-01")
 ```
 
-SEC asks callers to identify themselves and refuses requests that carry no contact address, so a default one is sent. Set your own so SEC can reach you rather than the project:
+| key | 智能体 |
+|---|---|
+| `market` | 技术分析师 |
+| `news` | 新闻分析师 |
+| `fundamentals` | 基本面分析师 |
+| `social` | 情绪分析师 |
+
+> 注意情绪分析师的 key 是 **`social`** 而不是 `sentiment` —— 后者是它在编译后图中的节点名。`run_backtest()` 也接受 `selected_analysts`。
+>
+> 分析师 key 的**唯一真源**是 `quantagent/graph/analyst_execution.py` 里的 `ANALYST_NODE_SPECS`；网页界面从它派生校验规则，而不是自己抄一份。
+
+---
+
+## 配置说明
+
+全部配置通过 `.env` 或 `config` 字典完成，环境变量前缀为 `QUANTAGENT_`。
+
+### LLM 供应商
 
 ```bash
-SEC_EDGAR_USER_AGENT="Your Name your@email.com"
+OPENAI_API_KEY=...          # OpenAI (GPT)
+GOOGLE_API_KEY=...          # Google (Gemini)
+ANTHROPIC_API_KEY=...       # Anthropic (Claude)
+XAI_API_KEY=...             # xAI (Grok)
+DEEPSEEK_API_KEY=...        # DeepSeek
+DASHSCOPE_API_KEY=...       # 通义千问 — 国际站
+DASHSCOPE_CN_API_KEY=...    # 通义千问 — 国内站
+ZHIPU_API_KEY=...           # GLM 国际站
+ZHIPU_CN_API_KEY=...        # GLM 国内站
+MINIMAX_API_KEY=...         # MiniMax 全球站
+MINIMAX_CN_API_KEY=...      # MiniMax 国内站
+OPENROUTER_API_KEY=...      # OpenRouter
+MISTRAL_API_KEY=...         # Mistral
+MOONSHOT_API_KEY=...        # Kimi
+GROQ_API_KEY=...            # Groq
+NVIDIA_API_KEY=...          # NVIDIA NIM
 ```
 
-It covers companies that file with the SEC, including foreign companies listed in the US. Anything else, such as Hong Kong or A-share listings, falls through to the next vendor in the chain. EDGAR's machine-readable filings begin in 2009, and a fourth quarter is reported as unavailable rather than derived, because filers publish it only inside the annual figure.
+其他供应商：
 
-### Current holdings
+- **Azure OpenAI**：复制 `.env.enterprise.example` 为 `.env.enterprise` 并填写凭据。
+- **AWS Bedrock**：`pip install ".[bedrock]"`，设置 `llm_provider: "bedrock"`，配置 AWS 凭据与 `AWS_DEFAULT_REGION`。
+- **Ollama 本地模型**：`llm_provider: "ollama"`，默认端点 `http://localhost:11434/v1`（可用 `OLLAMA_BASE_URL` 改），先 `ollama pull <name>`。
+- **任意 OpenAI 兼容服务**（vLLM、LM Studio、llama.cpp、自建中转）：`llm_provider: "openai_compatible"`，通过 `backend_url` 或 `QUANTAGENT_LLM_BACKEND_URL` 设置端点。本地服务不需要 Key，端点要求时设 `OPENAI_COMPATIBLE_API_KEY`。
 
-By default the agents do not know what you hold, so their guidance is written for a reader who applies it to their own position. Pass a portfolio to have the trader, the risk analysts and the portfolio manager work against your actual book.
+任何供应商提供的模型 ID 都可以直接填，不必局限于列表中的选项。
+
+### 数据源
+
+数据源按**类别**配置，可写多个形成降级链（逗号分隔，按顺序尝试）：
+
+```python
+config["data_vendors"] = {
+    "core_stock_apis":      "akshare,yfinance",   # 行情 OHLCV
+    "technical_indicators": "akshare,yfinance",   # 技术指标
+    "fundamental_data":     "akshare,yfinance",   # 财务数据
+    "news_data":            "akshare,yfinance",   # 新闻
+    "sentiment_data":       "akshare,yfinance",   # 散户情绪
+    "macro_data":           "fred",               # 宏观指标
+    "prediction_markets":   "polymarket",         # 预测市场
+}
+```
+
+**这正是默认值**，装好即用。`akshare` 排在前面对美股没有额外成本 —— 它在**发出任何网络请求之前**就会根据代码判断是否为中国市场并直接让开。
+
+其他可选数据源：
+
+```bash
+SEC_EDGAR_USER_AGENT="Your Name your@email.com"   # SEC EDGAR 财报（需可联系地址）
+FRED_API_KEY=...                                    # 宏观数据（免费，可选）
+ALPHA_VANTAGE_API_KEY=...                           # Alpha Vantage
+TYPESAFE_API_KEY=...                                # Jev 社交帖筛选（可选）
+```
+
+**SEC EDGAR 特别说明**：美国公司财报可取自 EDGAR，它记录了每个数字的**申报日期**。因此一个历史日期的运行会读到那天当时的报表原貌：已结束但尚未申报的财年不会被返回，后来重述过的数字仍以首次申报值为准。苹果 2008 年总资产最初申报为 396 亿美元，2010 年重述为 362 亿美元 —— 落在中间的运行日会读到 396 亿。
+
+### 决策日志与状态路径
+
+```bash
+QUANTAGENT_MEMORY_LOG_PATH=./state/memory/trading_memory.md
+QUANTAGENT_RESULTS_DIR=./state/logs
+QUANTAGENT_CACHE_DIR=./state/cache
+```
+
+---
+
+## A 股与港股支持
+
+```bash
+pip install -e ".[cn]"     # 安装 akshare
+```
+
+### 已接入
+
+| 能力 | 说明 |
+|---|---|
+| **日线 OHLCV** | 日期/开/收/高/低/成交量中文字段映射到统一契约；A股成交量从**手**换算为**股**（×100） |
+| **技术指标** | 复用 stockstats，与美股**同一套计算逻辑**，不存在两套实现漂移的风险 |
+| **财务三大表** | 资产负债表 / 利润表 / 现金流量表，**中国企业会计准则**科目映射 |
+| **关键指标** | 基本每股收益、ROE、销售毛利率、销售净利率等 |
+| **个股新闻** | 东方财富个股新闻，按分析窗口过滤 |
+| **散户情绪** | 东方财富股吧：关注指数、情绪评分、人气排名（见下文） |
+| **验证快照** | 市场分析师的确定性价格快照，A 股与美股共用同一套渲染器 |
+| **结算价格** | 决策结算与 alpha 计算的价格序列 |
+
+### 代码格式
+
+| 格式 | 解析结果 | 说明 |
+|---|---|---|
+| `600519.SS` | `600519.SS` 上海 | 正确写法 |
+| `600519.SH` | `600519.SS` 上海 | Yahoo 写法自动转正 |
+| `600519` | `600519.SS` 上海 | 裸代码按首位数字判断板块 |
+| `688981` | `688981.SS` 上海 | 科创板归上海 |
+| `300750` | `300750.SZ` 深圳 | 创业板归深圳 |
+| `0700.HK` | `00700.HK` 港股 | 自动补齐五位 |
+| `AAPL` / `BTC-USD` | 拒绝 | 非中国代码，直接让开交给下一个数据源 |
+
+### 财务科目映射
+
+中国企业会计准则与美股 GAAP 科目**没有一一对应关系**。框架采用映射表而非直接改名，并在每份报告头部标明准则来源。
+
+两处映射**并非精确等价**，报告中会明确标注：
+
+- **Revenue** 优先取 `营业收入`，无此科目时回退到 `营业总收入`。两者对金融机构不同 —— 银行把利息收入与手续费收入单独列报，回退值口径更宽。
+- **Net Income Attributable to Parent** 对应 `归母净利润`，口径**窄于**美股同名的 Net Income。
+
+供应商未以任何候选名称提供的科目，会渲染为 `N/A: 未以该名称披露`，**既不丢弃也不臆造**。
+
+### 实盘数据核对
+
+以 `600519.SS`（贵州茅台）为例，框架实时取得：
+
+```
+总资产    309,050,784,569.31 元
+FY2025 营业收入   168,838,102,514.79 元
+基本每股收益         65.66 元
+行业      Consumer Defensive / Beverages - Wineries & Distilleries
+```
+
+---
+
+## 情绪数据源
+
+美股读 **StockTwits**（用户自标 Bullish/Bearish）与 **Reddit**（r/wallstreetbets、r/stocks、r/investing）。A 股读 **东方财富股吧** —— 它在中国承担着同样的制度角色。
+
+### 但股吧不是消息流
+
+**雪球没有被使用。** AkShare 的雪球接口是热门话题榜和持仓榜，**不存在个股讨论流** —— `stock_hot_tweet_xq(symbol="SH600519")` 会抛 `KeyError`，因为它只提供全局热门列表。声称有雪球情绪源会是编造。
+
+因此 A 股情绪是**一组指标**，而不是帖子：
+
+| 信号 | 含义 |
+|---|---|
+| **用户关注指数**（30 个交易日） | 散户论坛的关注热度。**是热度，不是方向** —— 关注度上升而价格不动，说明大家在看而不是在买 |
+| **综合得分 / 机构参与度 / 主力成本** | 个股情绪评分卡。`主力成本`是散户平均持仓成本，**不是目标价** —— 输出中会明确写出这一点，因为它读起来很像 |
+| **人气排名 + 新晋粉丝/铁杆粉丝** | 人气排名随时间的变化，拆分为追高型与持股型粉丝。**新晋粉丝占比上升而价格无反应 = 散户流入，不是持有信心** |
+
+某个源临时不可用时，**保留其余可用源并列出不可用的项**；全部不可用时抛出明确异常，**而不是给分析师一个空块** —— 空块会被读成"没有情绪"，那是与"这个市场的情绪数据缺失"完全不同的结论。
+
+---
+
+## 已知缺口
+
+以下功能对 A 股**仍会降级而非失败**：
+
+| 缺口 | 对 A 股的影响 |
+|---|---|
+| **董监高持股变动** | 美股 Form 4 在 A 股无对应物；董监高持股变动是披露口径与频率都不同的另一种制度，未实现 |
+| **宏观指标** | 新闻分析师的宏观工具是 FRED，仅覆盖美国。中国宏观（PMI、社融、LPR）未接入；宏观**新闻**已回退到百度经济日报 |
+| **港股财务报表** | `.HK` 的行情、指标、新闻、情绪均可用；财务数据上游供应商不提供，会明确报出而非静默返回空 |
+| **交易日历** | 行情过期阈值已从 10 天提高到 20 天，使春节、国庆不被误判为过期，但**尚无真实交易所日历** —— 日期窗口是普通日历算术，结算的持有窗口估计按西方节假日调校 |
+
+**两个看起来像缺口但不是的**：
+
+- **公司简介**：`agents/context.py` 仍从 Yahoo 读取标的身份（名称、板块、行业、交易所），**对中国代码有效** —— `600519.SS` 解析为"贵州茅台 / 日常消费"，`0700.HK` 为"腾讯控股"。这是实测结论，不是推测。
+- **代码后缀**：见上文[代码格式](#代码格式)一节。
+
+---
+
+## 当前持仓
+
+默认情况下智能体并不知道你持有什么仓，因此给出的建议是写给"读者自行套用到自己的仓位"的。传入持仓后，Trader、风控分析师和投资组合经理会针对你的真实账面工作：
 
 ```python
 from quantagent.portfolio import PortfolioContext
 
 portfolio = PortfolioContext.model_validate({
     "cash": 25000.0,
-    "currency": "USD",
-    "positions": [{"ticker": "NVDA", "quantity": 120, "average_price": 150.0}],
+    "currency": "CNY",
+    "positions": [{"ticker": "600519.SS", "quantity": 100, "average_price": 1680.0}],
 })
-_, decision = ta.propagate("NVDA", "2026-09-01", portfolio=portfolio)
+_, decision = ta.propagate("600519.SS", "2026-09-01", portfolio=portfolio)
 ```
 
-The CLI takes the same content as a JSON file: `quantagent --portfolio my_book.json`.
+命令行同样支持，格式为 JSON 文件：`quantagent --portfolio my_book.json`
 
-An empty `positions` list means a flat book, which is different from passing nothing. A run without a portfolio is never treated as flat.
+> `positions` 为空列表表示**空仓**，这与**不传持仓**是不同的事。不传持仓的运行永远不会被当作空仓处理。
 
-## Persistence and Recovery
+---
 
-QuantAgent persists two kinds of state across runs.
+## 持久化与恢复
 
-### Decision log
+### 决策日志
 
-The decision log is always on. Each completed run appends its decision to `~/.quantagent/memory/trading_memory.md`. On the next run for the same ticker, QuantAgent fetches the realised return (raw, and alpha against the instrument's regional benchmark), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
+**始终开启。** 每次完成的运行会把决策追加到 `~/.quantagent/memory/trading_memory.md`。
 
-Override the path with `QUANTAGENT_MEMORY_LOG_PATH` (or the legacy `TRADINGAGENTS_MEMORY_LOG_PATH`).
+同一标的的下一次运行，QuantAgent 会：获取已实现收益率（绝对值 + 相对该标的所属地区基准的 alpha）→ 生成一段复盘反思 → 把最近若干次同标的决策与近期跨标的经验注入投资组合经理的提示词。**每一次分析都带着之前的教训往前走。**
 
-### Checkpoint resume
+路径可用 `QUANTAGENT_MEMORY_LOG_PATH` 覆盖。
 
-Checkpoint resume is opt-in via `--checkpoint`. When enabled, LangGraph saves state after each node so a crashed or interrupted run resumes from the last successful step instead of starting over. The run view says whether it resumed a saved run or started fresh. Checkpoints are cleared automatically on successful completion.
+### 断点续跑
 
-Per-ticker SQLite databases live at `~/.quantagent/cache/checkpoints/<TICKER>.db` (override the base with `QUANTAGENT_CACHE_DIR`). Use `--clear-checkpoints` to reset all of them before a run.
+默认关闭，通过 `--checkpoint` 开启。开启后 LangGraph 会在每个节点后保存状态，崩溃或中断的运行会**从最后一个成功步骤继续**，而不是从头再来。运行界面会标明本次是复用了已保存的运行还是全新开始。成功完成后 checkpoint 自动清除。
+
+每个标的对应一个 SQLite 数据库，位于 `~/.quantagent/cache/checkpoints/<代码>.db`。用 `--clear-checkpoints` 在运行前重置。
 
 ```bash
-quantagent --checkpoint           # enable for this run
-quantagent --clear-checkpoints    # reset before running
+quantagent --checkpoint
+quantagent --clear-checkpoints
 ```
 
-```python
-config = DEFAULT_CONFIG.copy()
-config["checkpoint_enabled"] = True
-ta = QuantAgentGraph(config=config)
-_, decision = ta.propagate("NVDA", "2026-09-01")
-```
+---
 
-## Evaluating decisions over time
+## 回测
 
-One run gives one decision, which cannot tell you whether the system decides well. `run_backtest` runs the same pipeline over a grid of tickers and dates, writes to a decision log of its own, and scores the decisions whose holding window has since traded.
+单次运行只给一个决策，无法说明系统决策质量如何。`run_backtest` 在「代码 × 日期」网格上运行同一套流程，写入独立决策日志，并结算那些持有窗口已经走完的决策。
 
 ```python
 from quantagent.backtest import iter_grid, run_backtest, summarize
 
 dates = iter_grid("2026-06-01", "2026-08-01", every_n_days=7)
-result = run_backtest(["NVDA", "AAPL"], dates, config, selected_analysts=["market", "news"])
+result = run_backtest(["600519.SS", "000001.SZ"], dates, config,
+                      selected_analysts=["market", "social"])
 print(summarize(result).render())
 ```
 
-From the CLI:
+命令行：
 
 ```bash
-quantagent backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
+quantagent backtest 600519.SS,000001.SZ --start 2026-06-01 --end 2026-08-01 --every 7
 ```
 
-Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. Your own decision log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.
+每个格子按相对地区基准的实际 alpha 打分，并按评级分组统计。**你自己的决策日志永远不会被写入**；用 `run_id=result.run_id` 重跑同一网格会跳过已完成的格子，中断的扫描可以从断点继续。
 
-## Reproducibility
+---
 
-QuantAgent is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.
+## 可复现性
 
-Language model sampling is non-deterministic. Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models (the default GPT-6 family, and any thinking-mode model) vary the most because their internal reasoning is itself sampled.
+QuantAgent 由大模型驱动，因此**同一代码同一日期的两次运行可能不同**。这对于一个基于语言模型的研究工具是预期行为，不是缺陷。差异来自几个可区分的来源：
 
-Live data moves. News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but the social and news sources still reflect "now".
+**模型采样本身不确定。** 即使固定温度，供应商也不保证多次调用输出逐字节一致。推理模型（默认的 GPT-6 系列及任何思考模式模型）波动最大，因为其内部推理过程本身也是采样的。
 
-To reduce variation you can lower the sampling temperature. Set `temperature` in your config (or `QUANTAGENT_TEMPERATURE` in `.env`); lower values make models that honor it more repeatable. The current curated models are reasoning-first and largely ignore temperature, so for tighter reproducibility name a non-reasoning model in your config, or in `QUANTAGENT_DEEP_THINK_LLM` and `QUANTAGENT_QUICK_THINK_LLM`. Any model ID your provider serves is accepted, whether or not the picker lists it.
+**实时数据在变。** 新闻、StockTwits、Reddit 会随时间返回不同内容，因此今天的运行看到的是"现在"的舆情 —— 即使分析日期是历史日期。固定分析日期可以锁定价格与指标窗口，但社交与新闻源仍反映当下。
+
+### 如何降低波动
+
+降低采样温度（`temperature`，或 `.env` 中的 `QUANTAGENT_TEMPERATURE`）。**当前主流的推理模型基本忽略温度**，因此若需更强复现性，请在配置中指定**非推理模型**。
 
 ```python
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"
+config["llm_provider"] = "deepseek"
 config["temperature"] = 0.0
-# Reasoning models ignore temperature. For tighter reproducibility, name a
-# non-reasoning model in deep_think_llm / quick_think_llm.
+config["deep_think_llm"] = "deepseek-chat"     # 非推理模型
+config["quick_think_llm"] = "deepseek-chat"
 ```
 
-What does not vary anymore: the analyzed company identity is resolved deterministically from the ticker before any agent runs, and the market analyst grounds exact price and indicator claims in a verified data snapshot. Earlier reports of "different companies" or fabricated price levels across runs are addressed by these two mechanisms.
+### 哪些已经不会变了
 
-Backtest results are not guaranteed to match any published figure. Returns depend on the model, the temperature, the date range, data quality, and the sampling above. Treat the framework as a research scaffold for studying multi-agent analysis, not as a strategy with a fixed, replicable return.
+- **标的身份在运行前由代码确定性地解析**，不会因为模型幻觉而认错公司。
+- **市场分析师的所有精确价格与指标断言都锚定在验证快照上**。此前"不同运行变成不同公司"或"编造价位"的问题，由这两项机制解决。
 
-## Contributing
+> 回测结果不应被期待与任何已发表数字吻合。请把本框架当作**研究多智能体分析的脚手架**，而不是一个有固定可复现收益的策略。
 
-Bug fixes, documentation and feature ideas are welcome. Contributions are
-credited per release in [`CHANGELOG.md`](CHANGELOG.md).
+---
 
-## Credits
+## 开发
 
-QuantAgent is built on an existing open-source framework, and the paper that
-introduced the multi-agent trading design is the reference for the architecture
-here. If your work uses it, please cite the original:
+```bash
+pip install -e ".[dev]"
+
+pytest        # 1251 个测试，其中 1247 通过、4 跳过
+ruff check .
+```
+
+### 代码结构
+
+```
+quantagent/
+├── agents/                     # 智能体定义
+│   ├── analysts/               # market / news / fundamentals / sentiment
+│   ├── researchers/            # 看多 / 看空辩论方
+│   ├── risk_mgmt/              # aggressive / conservative / neutral
+│   ├── managers/               # research manager / portfolio manager
+│   ├── trader/                 # Trader
+│   ├── tools.py                # 智能体工具（全部经由路由分发）
+│   ├── context.py              # 标的身份与语言指令
+│   ├── post_screen.py          # Jev 社交帖筛选
+│   ├── rating.py               # 评级词表
+│   ├── structured.py           # 结构化输出 + 自由文本回退
+│   ├── schemas.py              # Pydantic 输出模式与渲染
+│   └── state.py                # 图状态定义
+├── dataflows/
+│   ├── router.py               # 供应商路由与降级链
+│   ├── config.py               # 配置解析
+│   ├── symbols.py              # 代码规范化
+│   └── vendors/
+│       ├── akshare/            # A股/港股：行情 / 财务 / 新闻 / 情绪
+│       ├── yahoo/              # 美股及全球行情
+│       ├── alpha_vantage/
+│       ├── sec_edgar.py        # 美国申报财报
+│       ├── fred.py             # 宏观指标
+│       ├── polymarket.py       # 预测市场
+│       ├── reddit.py           # 社交情绪
+│       ├── stocktwits.py       # 社交情绪
+│       └── us_sentiment.py     # 美股情绪组合（StockTwits + Reddit）
+├── graph/
+│   ├── trading_graph.py        # LangGraph 主图
+│   ├── setup.py                # 图构建
+│   ├── propagation.py          # 状态初始化与流式运行
+│   ├── analyst_execution.py    # 分析师注册表（key 的唯一真源）
+│   ├── checkpointer.py         # 断点续跑
+│   ├── conditional_logic.py    # 条件边
+│   ├── reflection.py           # 复盘反思生成
+│   └── settlement.py           # 历史决策结算
+├── backtest.py                 # 网格回测与评分
+├── portfolio.py                # 持仓上下文
+├── observability.py            # 用量与成本统计
+└── web/                        # FastAPI + SSE 网页界面
+```
+
+### 关键约定
+
+- **新增数据源**：在 `dataflows/vendors/` 下实现，在 `router.py` 的 `VENDOR_METHODS` 注册，在 `default_config.py` 的 `data_vendors` 加入类别。**不要在智能体里直接 import 某个数据源** —— 那会绕过降级链，并且非中国代码会收到本市场没有的数据。
+- **抛出错误要用类型化异常**：`NoMarketDataError`（换下一个源）、`VendorRateLimitError`（源限流）、`VendorNotConfiguredError`（未配置）。抛出裸 `Exception` 会被路由记为"该源故障"，在链耗尽时可能顶替真实原因。
+- **分析师 key 的唯一真源是 `graph/analyst_execution.py` 的 `ANALYST_NODE_SPECS`**，不要在别处复制这份列表。
+
+---
+
+## 致谢与许可
+
+QuantAgent 是一个衍生作品，基于 Apache-2.0 协议。完整的衍生记录与归属声明见 [NOTICE](NOTICE)，许可证全文见 [LICENSE](LICENSE)。
+
+多智能体交易的设计源自一篇已发表的论文。**如果你的工作使用本框架，请引用原始工作**：
 
 ```
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,
@@ -550,7 +706,15 @@ here. If your work uses it, please cite the original:
 }
 ```
 
-The A-share and Hong Kong market data layer, the web UI, the cancellation and
-observability work, and the Chinese-language output are this project's own
-contributions to that derived work. See [NOTICE](NOTICE) and
-[LICENSE](LICENSE) for the full derivation record.
+以下部分为本项目在该衍生作品上的自有贡献：
+
+- A 股与港股市场数据层（行情、中国会计准则财务、新闻、情绪）
+- 网页界面与 SSE 流式进度
+- 可中止的运行控制、用量与成本可观测性
+- 结构化评级传递
+- 中文输出支持
+- Windows 非 ASCII 路径与状态目录的可用性修复
+
+版本历史见 [CHANGELOG.md](CHANGELOG.md)。
+
+**再次强调：QuantAgent 是研究工具，不构成投资建议。**
