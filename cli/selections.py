@@ -36,6 +36,17 @@ from cli.prompts import (
 from quantagent.default_config import DEFAULT_CONFIG
 
 
+def _env_set(name):
+    """True when a settings var is set, under either supported prefix.
+
+    QuantAgent's canonical prefix is ``QUANTAGENT_``; a ``.env`` carried over
+    from upstream TradingAgents still uses ``TRADINGAGENTS_``. The config layer
+    honours both, so the "skip this prompt" checks have to as well.
+    """
+    legacy = name.replace("QUANTAGENT_", "TRADINGAGENTS_", 1)
+    return bool(os.environ.get(name) or os.environ.get(legacy))
+
+
 def get_user_selections():
     """Ask for the run's settings, offering the previous run's answers."""
     selections = _prompt_selections(load_last_run())
@@ -81,11 +92,12 @@ def _prompt_selections(prefs):
     def thinking_value_or_prompt(env_var, config_key, label, box_title, box_body, prompt_fn):
         """Return the env-configured reasoning/thinking value, or prompt for it.
 
-        When ``env_var`` is set the interactive choice is skipped and the value
-        the env overlay placed on DEFAULT_CONFIG is used — mirroring the
-        env-precedence rule applied to the other selection steps.
+        When ``env_var`` is set — under either the canonical QUANTAGENT_ prefix
+        or the legacy TRADINGAGENTS_ one — the interactive choice is skipped and
+        the value the env overlay placed on DEFAULT_CONFIG is used, mirroring
+        the env-precedence rule applied to the other selection steps.
         """
-        if os.environ.get(env_var):
+        if _env_set(env_var):
             value = DEFAULT_CONFIG[config_key]
             console.print(f"[green]✓ {label} from environment:[/green] {value}")
             return value
@@ -120,8 +132,8 @@ def _prompt_selections(prefs):
     )
     analysis_date = get_analysis_date()
 
-    # Step 3: Output language (skipped when set via TRADINGAGENTS_OUTPUT_LANGUAGE)
-    if os.environ.get("TRADINGAGENTS_OUTPUT_LANGUAGE"):
+    # Step 3: Output language (skipped when set via QUANTAGENT_OUTPUT_LANGUAGE)
+    if _env_set("QUANTAGENT_OUTPUT_LANGUAGE"):
         output_language = DEFAULT_CONFIG["output_language"]
         console.print(
             f"[green]✓ Output language from environment:[/green] {output_language}"
@@ -149,10 +161,10 @@ def _prompt_selections(prefs):
 
     # Step 5: Research depth (skipped when both round counts are set via env).
     # Research depth maps to the debate + risk round counts; when both are
-    # supplied through TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS we keep
+    # supplied through QUANTAGENT_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS we keep
     # the run non-interactive and honor the env values (#977).
-    depth_from_env = bool(os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS")) and bool(
-        os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS")
+    depth_from_env = _env_set("QUANTAGENT_MAX_DEBATE_ROUNDS") and _env_set(
+        "QUANTAGENT_MAX_RISK_ROUNDS"
     )
     if depth_from_env:
         selected_research_depth = DEFAULT_CONFIG["max_debate_rounds"]
@@ -169,11 +181,11 @@ def _prompt_selections(prefs):
         )
         selected_research_depth = select_research_depth(prefs.get("research_depth"))
 
-    # Step 6: LLM Provider (skipped when set via TRADINGAGENTS_LLM_PROVIDER).
-    # The backend URL comes from TRADINGAGENTS_LLM_BACKEND_URL when set,
+    # Step 6: LLM Provider (skipped when set via QUANTAGENT_LLM_PROVIDER).
+    # The backend URL comes from QUANTAGENT_LLM_BACKEND_URL when set,
     # otherwise the provider's default endpoint — the same value the menu
     # would have picked.
-    provider_from_env = bool(os.environ.get("TRADINGAGENTS_LLM_PROVIDER"))
+    provider_from_env = _env_set("QUANTAGENT_LLM_PROVIDER")
     if provider_from_env:
         selected_llm_provider = DEFAULT_CONFIG["llm_provider"].lower()
         backend_url = resolve_backend_url(
@@ -225,7 +237,7 @@ def _prompt_selections(prefs):
         ensure_api_key(selected_llm_provider)
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
-    if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
+    if _env_set("QUANTAGENT_QUICK_THINK_LLM") or _env_set("QUANTAGENT_DEEP_THINK_LLM"):
         selected_shallow_thinker = DEFAULT_CONFIG["quick_think_llm"]
         selected_deep_thinker = DEFAULT_CONFIG["deep_think_llm"]
         console.print(
@@ -247,7 +259,7 @@ def _prompt_selections(prefs):
         )
 
     # Step 8: Provider-specific reasoning/thinking configuration. Each knob is
-    # settable via its TRADINGAGENTS_* env var; when that var is set (or the
+    # settable via its QUANTAGENT_* env var; when that var is set (or the
     # provider itself came from env) the prompt is skipped and the configured
     # value is used — same env-precedence rule as the steps above. None = each
     # provider's own default.
@@ -262,19 +274,19 @@ def _prompt_selections(prefs):
         anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
     elif provider_lower == "google":
         thinking_level = thinking_value_or_prompt(
-            "TRADINGAGENTS_GOOGLE_THINKING_LEVEL", "google_thinking_level",
+            "QUANTAGENT_GOOGLE_THINKING_LEVEL", "google_thinking_level",
             "Gemini thinking mode", "Step 8: Thinking Mode",
             "Configure Gemini thinking mode", ask_gemini_thinking_config,
         )
     elif provider_lower == "openai":
         reasoning_effort = thinking_value_or_prompt(
-            "TRADINGAGENTS_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
+            "QUANTAGENT_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
             "Reasoning effort", "Step 8: Reasoning Effort",
             "Configure OpenAI reasoning effort level", ask_openai_reasoning_effort,
         )
     elif provider_lower == "anthropic":
         anthropic_effort = thinking_value_or_prompt(
-            "TRADINGAGENTS_ANTHROPIC_EFFORT", "anthropic_effort",
+            "QUANTAGENT_ANTHROPIC_EFFORT", "anthropic_effort",
             "Claude effort", "Step 8: Effort Level",
             "Configure Claude effort level", ask_anthropic_effort,
         )

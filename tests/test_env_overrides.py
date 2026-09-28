@@ -1,4 +1,8 @@
-"""Tests for TRADINGAGENTS_* env-var overlay onto DEFAULT_CONFIG."""
+"""Tests for the QUANTAGENT_* env-var overlay onto DEFAULT_CONFIG.
+
+The legacy TRADINGAGENTS_* spellings stay supported, so most cases here
+exercise the back-compat path; the canonical-prefix cases are pinned below.
+"""
 
 from __future__ import annotations
 
@@ -10,10 +14,27 @@ import pytest
 import quantagent.default_config as default_config_module
 
 
-def _reload_with_env(monkeypatch, **overrides):
-    """Set/clear env vars then reload default_config to re-evaluate DEFAULT_CONFIG."""
+def _clear_all_prefixes(monkeypatch):
+    """Drop every overlay var under both prefixes.
+
+    ``_ENV_OVERRIDES`` only holds the canonical names now, so clearing just its
+    keys would leave a TRADINGAGENTS_* var set by an earlier test in place —
+    and the overlay would still honour it.
+    """
     for key in list(default_config_module._ENV_OVERRIDES):
         monkeypatch.delenv(key, raising=False)
+        monkeypatch.delenv(
+            key.replace(
+                default_config_module._ENV_PREFIX,
+                default_config_module._ENV_LEGACY_PREFIX,
+            ),
+            raising=False,
+        )
+
+
+def _reload_with_env(monkeypatch, **overrides):
+    """Set/clear env vars then reload default_config to re-evaluate DEFAULT_CONFIG."""
+    _clear_all_prefixes(monkeypatch)
     for key, val in overrides.items():
         monkeypatch.setenv(key, val)
     return importlib.reload(default_config_module)
@@ -110,7 +131,7 @@ def test_empty_path_value_keeps_the_default_path(monkeypatch):
         TRADINGAGENTS_CACHE_DIR="",
         TRADINGAGENTS_MEMORY_LOG_PATH="",
     )
-    home = dc._TRADINGAGENTS_HOME
+    home = dc._QUANTAGENT_HOME
     assert dc.DEFAULT_CONFIG["results_dir"] == os.path.join(home, "logs")
     assert dc.DEFAULT_CONFIG["data_cache_dir"] == os.path.join(home, "cache")
     assert dc.DEFAULT_CONFIG["memory_log_path"] == os.path.join(home, "memory", "trading_memory.md")
@@ -143,3 +164,78 @@ def test_unknown_env_var_is_ignored(monkeypatch):
         TRADINGAGENTS_NONEXISTENT_KEY="oops",
     )
     assert "nonexistent_key" not in dc.DEFAULT_CONFIG
+
+
+# --- prefix rename: QUANTAGENT_ is canonical, TRADINGAGENTS_ still honoured ---
+
+
+def test_canonical_prefix_is_applied(monkeypatch):
+    dc = _reload_with_env(
+        monkeypatch,
+        QUANTAGENT_LLM_PROVIDER="deepseek",
+        QUANTAGENT_DEEP_THINK_LLM="deepseek-reasoner",
+        QUANTAGENT_MAX_DEBATE_ROUNDS="3",
+        QUANTAGENT_MAX_RISK_ROUNDS="2",
+        QUANTAGENT_OUTPUT_LANGUAGE="Simplified Chinese",
+        QUANTAGENT_TEMPERATURE="0.2",
+    )
+    assert dc.DEFAULT_CONFIG["llm_provider"] == "deepseek"
+    assert dc.DEFAULT_CONFIG["deep_think_llm"] == "deepseek-reasoner"
+    assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 3
+    assert dc.DEFAULT_CONFIG["max_risk_discuss_rounds"] == 2
+    assert dc.DEFAULT_CONFIG["output_language"] == "Simplified Chinese"
+    # temperature defaults to None, so _coerce has no float reference to cast
+    # against and the raw string survives; the LLM factory does the float().
+    assert dc.DEFAULT_CONFIG["temperature"] == "0.2"
+
+
+def test_legacy_prefix_still_applies(monkeypatch):
+    """A .env carried over from upstream TradingAgents must keep working."""
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_LLM_PROVIDER="google",
+        TRADINGAGENTS_MAX_DEBATE_ROUNDS="4",
+    )
+    assert dc.DEFAULT_CONFIG["llm_provider"] == "google"
+    assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 4
+
+
+def test_canonical_prefix_wins_over_legacy(monkeypatch):
+    """Both spellings set: the current name must take precedence."""
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_LLM_PROVIDER="google",
+        QUANTAGENT_LLM_PROVIDER="deepseek",
+        TRADINGAGENTS_MAX_DEBATE_ROUNDS="4",
+        QUANTAGENT_MAX_DEBATE_ROUNDS="1",
+    )
+    assert dc.DEFAULT_CONFIG["llm_provider"] == "deepseek"
+    assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
+
+
+def test_blank_canonical_falls_through_to_legacy(monkeypatch):
+    """A blanked-out new name (as shipped in .env.example) still reads the old one."""
+    dc = _reload_with_env(
+        monkeypatch,
+        QUANTAGENT_LLM_PROVIDER="",
+        TRADINGAGENTS_LLM_PROVIDER="anthropic",
+    )
+    assert dc.DEFAULT_CONFIG["llm_provider"] == "anthropic"
+
+
+def test_every_override_has_a_distinct_legacy_alias(monkeypatch):
+    """No canonical name may collide with a legacy one after the prefix swap."""
+    dc = _reload_with_env(monkeypatch)
+    for name in dc._ENV_OVERRIDES:
+        assert name.startswith(dc._ENV_PREFIX), name
+        legacy = dc._canonical_env_name(name.replace(dc._ENV_PREFIX, dc._ENV_LEGACY_PREFIX))
+        assert legacy == name
+        assert legacy not in dc._ENV_OVERRIDES or legacy == name
+
+
+def test_legacy_path_vars_still_resolve(monkeypatch):
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_RESULTS_DIR="/tmp/legacy-logs",
+    )
+    assert dc.DEFAULT_CONFIG["results_dir"] == "/tmp/legacy-logs"

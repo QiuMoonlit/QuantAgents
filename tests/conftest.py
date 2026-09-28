@@ -7,12 +7,16 @@ import pytest
 
 
 def _blank_settings_overlay():
-    """Blank every TRADINGAGENTS_* setting before the package is imported.
+    """Blank every QuantAgent settings variable before the package is imported.
 
     The package loads .env on import and folds these variables into
     DEFAULT_CONFIG, so a contributor's own settings would become the defaults
     the suite asserts on. A blank value is still present, so load_dotenv leaves
     it alone, and the overlay reads it as unset. Tests of the overlay set their own.
+
+    Both the canonical QUANTAGENT_ prefix and the legacy TRADINGAGENTS_ one are
+    blanked: the config layer honours either spelling, so a .env still using the
+    old prefix would otherwise leak into the suite.
     """
     from dotenv import dotenv_values, find_dotenv
 
@@ -20,7 +24,7 @@ def _blank_settings_overlay():
     for filename in (".env", ".env.enterprise"):
         names |= set(dotenv_values(find_dotenv(filename, usecwd=True)))
     for name in names:
-        if name.startswith("TRADINGAGENTS_"):
+        if name.startswith(("QUANTAGENT_", "TRADINGAGENTS_")):
             os.environ[name] = ""
 
 

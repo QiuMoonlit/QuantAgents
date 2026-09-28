@@ -64,16 +64,19 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     """
     config = DEFAULT_CONFIG.copy()
     # Research depth sets both round counts, but an explicit env override
-    # (TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS) wins over the
+    # (QUANTAGENT_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS) wins over the
     # interactive selection — leave the env-applied value in place (#977).
-    for env_var, key in (("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "max_debate_rounds"),
-                         ("TRADINGAGENTS_MAX_RISK_ROUNDS", "max_risk_discuss_rounds")):
-        if os.environ.get(env_var):
+    for env_var, key in (("QUANTAGENT_MAX_DEBATE_ROUNDS", "max_debate_rounds"),
+                         ("QUANTAGENT_MAX_RISK_ROUNDS", "max_risk_discuss_rounds")):
+        legacy = env_var.replace("QUANTAGENT_", "TRADINGAGENTS_", 1)
+        set_name = next((n for n in (env_var, legacy) if os.environ.get(n)), None)
+        if set_name:
             # The depth prompt still appeared (it is skipped only when both are
             # set), so say which half of the answer the environment overrode.
+            # Name the variable the user actually wrote, which may be legacy.
             console.print(
                 f"[green]✓ {key} from environment:[/green] {config[key]} "
-                f"(set by {env_var}, so the research depth you chose does not apply to it)"
+                f"(set by {set_name}, so the research depth you chose does not apply to it)"
             )
         else:
             config[key] = selections["research_depth"]
