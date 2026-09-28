@@ -19,7 +19,7 @@ from quantagent.agents.schemas import PortfolioDecision, render_pm_decision
 from quantagent.agents.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
-    invoke_structured_or_freetext,
+    invoke_structured_or_freetext_with_model,
 )
 
 
@@ -78,13 +78,18 @@ Write these sections, in this order, starting with the rating on its own line:
 
 {NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
 
-        final_trade_decision = invoke_structured_or_freetext(
+        final_trade_decision, decision = invoke_structured_or_freetext_with_model(
             structured_llm,
             llm,
             prompt,
             render_pm_decision,
             "Portfolio Manager",
         )
+
+        # The rating travels to the signal layer as a value, not as prose.
+        # process_signal still falls back to parsing final_trade_decision when
+        # this is None, which is the free-text path.
+        final_rating = _rating_of(decision)
 
         new_risk_debate_state = {
             "judge_decision": final_trade_decision,
@@ -102,6 +107,22 @@ Write these sections, in this order, starting with the rating on its own line:
         return {
             "risk_debate_state": new_risk_debate_state,
             "final_trade_decision": final_trade_decision,
+            "final_rating": final_rating,
         }
 
     return portfolio_manager_node
+
+
+def _rating_of(decision) -> str | None:
+    """The rating as a plain string, or None when the model is unavailable.
+
+    ``PortfolioDecision.rating`` is a ``PortfolioRating`` enum, so this is the
+    model's own answer with no regex, no English-label round trip, and no way
+    for a translated report to change the signal.
+    """
+    if decision is None:
+        return None
+    rating = getattr(decision, "rating", None)
+    if rating is None:
+        return None
+    return getattr(rating, "value", None) or str(rating)

@@ -341,7 +341,12 @@ class QuantAgentGraph:
         # Clear checkpoint on successful completion to avoid stale state.
         self.clear_checkpoint_on_success(company_name, trade_date, asset_type, portfolio)
 
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        # Prefer the structured rating the Portfolio Manager carried out of its
+        # PortfolioDecision. Falling back to the rendered markdown keeps the
+        # free-text path working, and keeps process_signal's signature
+        # unchanged for callers that stub it.
+        signal_source = final_state.get("final_rating") or final_state["final_trade_decision"]
+        return final_state, self.process_signal(signal_source)
 
     def _log_state(self, trade_date, final_state):
         """Write a run's final state to JSON under the run's own ticker."""
@@ -386,5 +391,15 @@ class QuantAgentGraph:
             json.dump(entry, f, indent=4, ensure_ascii=False)
 
     def process_signal(self, full_signal):
-        """The decision's 5-tier rating, or REVIEW when it has none."""
+        """The decision's 5-tier rating, or REVIEW when it has none.
+
+        Callers should pass ``final_rating`` from the graph state when it is
+        present: that is the value carried straight out of the Portfolio
+        Manager's ``PortfolioDecision``, so the signal does not depend on the
+        report being English. A model that rendered "评级：买入" in the prose
+        still produces Buy.
+
+        With only the rendered prose — the free-text path, or a direct caller
+        — the rating is parsed out of the text exactly as before.
+        """
         return parse_rating(full_signal)

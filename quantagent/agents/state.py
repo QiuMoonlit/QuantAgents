@@ -73,5 +73,11 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+    final_rating: Annotated[
+        str,
+        "Rating taken from the structured PortfolioDecision; the signal layer "
+        "prefers this over parsing final_trade_decision. Empty on the "
+        "free-text path, where the parser is the only source.",
+    ]
     past_context: Annotated[str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"]
     portfolio_context: Annotated[str, "Caller-supplied holdings and cash, rendered at run start; empty when not provided"]

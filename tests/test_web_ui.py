@@ -5,6 +5,7 @@ deltas, and derives agent status from those deltas. The status derivation is
 the part with real logic, so that is what is pinned here. Nothing in this file
 touches the network or an LLM.
 """
+import json
 import time
 from datetime import date, timedelta
 from pathlib import Path
@@ -334,6 +335,65 @@ class TestCancel:
             assert server._acquire_graph_slot(run) is False
         finally:
             server._GRAPH_LOCK.release()
+
+
+class TestSseFrames:
+    """Frame format and replay, without a socket.
+
+    The integration suite covers the parts that need a real connection; these
+    cover the parts that do not, and do so without spending an LLM call.
+    """
+
+    def test_a_frame_is_one_data_line_then_a_blank_line(self):
+        raw = server._sse({"type": "status", "status": {"market": "done"}})
+        text = raw.decode()
+        assert text == 'data: {"type": "status", "status": {"market": "done"}}\n\n'
+
+    def test_unicode_is_not_escaped(self):
+        """A Chinese report must reach the browser as UTF-8, not \\uXXXX."""
+        raw = server._sse({"type": "snapshot", "state": {"market_report": "技术分析"}})
+        assert "技术分析".encode() in raw
+        assert b"\\u" not in raw
+
+    def test_a_value_containing_a_newline_cannot_break_the_frame(self):
+        """A model emitting a blank line inside a report would desync the
+        stream if it were serialised raw."""
+        raw = server._sse({"type": "done", "decision": "line one\n\nline two"})
+        assert raw.decode().count("\n\n") == 1
+        assert json.loads(raw.decode()[6:].strip())["decision"] == "line one\n\nline two"
+
+    def _run_with_replay(self, events) -> "server.Run":
+        run = server.Run(id="rep", ticker="NVDA", trade_date="2026-09-01",
+                         analysts=["market"], config={})
+        for event in events:
+            run.replay.append(event)
+        return run
+
+    def test_replay_preserves_order_and_is_bounded(self):
+        run = server.Run(id="rep", ticker="NVDA", trade_date="2026-09-01",
+                         analysts=["market"], config={})
+        for i in range(server.REPLAY_BUFFER + 50):
+            run.replay.append({"type": "snapshot", "n": i})
+        assert len(run.replay) == server.REPLAY_BUFFER
+        assert [e["n"] for e in run.replay][-1] == server.REPLAY_BUFFER + 49, "newest kept"
+
+    def test_replay_is_what_a_reconnecting_client_redraws_from(self):
+        run = self._run_with_replay([
+            {"type": "started", "teams": TEAMS},
+            {"type": "status", "status": {"market": "done"}},
+        ])
+        assert [e["type"] for e in run.replay] == ["started", "status"]
+
+    def test_release_does_not_wipe_the_replay_buffer(self):
+        """A client that reconnects after completion still needs the frames."""
+        run = self._run_with_replay([{"type": "done", "decision": "**Rating**: Buy"}])
+        run.release()
+        assert [e["type"] for e in run.replay] == ["done"]
+
+    def test_unknown_run_frame_is_a_valid_frame(self):
+        raw = server._unknown_run_frame("abc")
+        payload = json.loads(raw.decode()[6:].strip())
+        assert payload == {"type": "error", "error": "unknown run abc"}
 
 
 class TestCost:

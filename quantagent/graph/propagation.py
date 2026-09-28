@@ -63,6 +63,10 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            # Populated by the Portfolio Manager when the provider returned a
+            # structured PortfolioDecision. Empty on the free-text path, where
+            # process_signal parses the rendered markdown instead.
+            "final_rating": "",
         }
 
     def get_graph_args(self, callbacks: list | None = None) -> dict[str, Any]:

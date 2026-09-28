@@ -561,6 +561,15 @@ def run_state(run_id: str) -> dict:
     return run.summary()
 
 
+_SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    # Without this a reverse proxy buffers frames and the browser sees nothing
+    # until the run ends, which defeats the whole point of the stream.
+    "X-Accel-Buffering": "no",
+    "Connection": "keep-alive",
+}
+
+
 def _unknown_run_frame(run_id: str) -> bytes:
     """SSE frame for a stream request naming a run this server never issued."""
     return _sse({"type": "error", "error": f"unknown run {run_id}"})
@@ -573,6 +582,7 @@ async def stream(run_id: str) -> StreamingResponse:
         return StreamingResponse(
             iter([_unknown_run_frame(run_id)]),
             media_type="text/event-stream",
+            headers=_SSE_HEADERS,
         )
 
     async def gen() -> Iterator[bytes]:
@@ -592,8 +602,7 @@ async def stream(run_id: str) -> StreamingResponse:
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
-                 "Connection": "keep-alive"},
+        headers=_SSE_HEADERS,
     )
 
 
