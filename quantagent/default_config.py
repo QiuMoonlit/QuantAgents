@@ -184,9 +184,16 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # routed to vendors you didn't choose. For ordered fallback, list several,
     # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
+        # akshare leads on the categories it covers. It declines a US ticker
+        # before touching the network (the symbol does not match a Chinese
+        # exchange), so listing it first costs nothing for a US run and is what
+        # makes 600519.SS / 0700.HK work. Drop it from a chain to go back to
+        # the upstream yfinance-only behaviour.
+        "core_stock_apis": "akshare,yfinance",       # Options: akshare, alpha_vantage, yfinance
+        "technical_indicators": "akshare,yfinance",  # Options: akshare, alpha_vantage, yfinance
+        "fundamental_data": "akshare,yfinance",      # Options: akshare, alpha_vantage, yfinance
+        # News and sentiment are not yet wired for Chinese markets; see the
+        # coverage table in the README.
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
         "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
         "prediction_markets": "polymarket",  # Options: polymarket (keyless)

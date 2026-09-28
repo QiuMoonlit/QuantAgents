@@ -20,7 +20,13 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
         cfg["tool_vendors"]["get_stock_data"] = "alpha_vantage"
 
         fresh = get_config()
-        self.assertEqual(fresh["data_vendors"]["core_stock_apis"], "yfinance")
+        # Read the expectation from DEFAULT_CONFIG rather than hardcoding a
+        # vendor name: these tests are about isolation, and a default that
+        # changes (akshare was added to the price chains) should not fail them.
+        self.assertEqual(
+            fresh["data_vendors"]["core_stock_apis"],
+            default_config.DEFAULT_CONFIG["data_vendors"]["core_stock_apis"],
+        )
         self.assertNotIn("get_stock_data", fresh["tool_vendors"])
 
     def test_set_config_does_not_alias_caller_nested_dicts(self):
@@ -38,6 +44,11 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
         self.assertEqual(fresh["tool_vendors"]["get_stock_data"], "alpha_vantage")
 
     def test_partial_nested_update_preserves_existing_defaults(self):
+        untouched = {
+            key: default_config.DEFAULT_CONFIG["data_vendors"][key]
+            for key in ("technical_indicators", "fundamental_data", "news_data")
+        }
+
         set_config(
             {
                 "data_vendors": {
@@ -48,9 +59,8 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
 
         fresh = get_config()
         self.assertEqual(fresh["data_vendors"]["core_stock_apis"], "alpha_vantage")
-        self.assertEqual(fresh["data_vendors"]["technical_indicators"], "yfinance")
-        self.assertEqual(fresh["data_vendors"]["fundamental_data"], "yfinance")
-        self.assertEqual(fresh["data_vendors"]["news_data"], "yfinance")
+        for key, expected in untouched.items():
+            self.assertEqual(fresh["data_vendors"][key], expected, key)
 
     def test_nested_dict_updates_merge_one_level_deep(self):
         set_config({"tool_vendors": {"get_stock_data": "alpha_vantage"}})
@@ -95,7 +105,11 @@ def test_a_run_reads_its_own_graphs_vendors_not_the_last_graph_built():
     set_config(first)                                   # graph A is built
     second = _graph(copy.deepcopy(default_config.DEFAULT_CONFIG))
 
-    assert _vendors_seen_by_a_run(second) == ["yfinance"]
+    # The default chain, not a hardcoded vendor name: the price and
+    # fundamental defaults gained an akshare entry when that vendor landed.
+    assert _vendors_seen_by_a_run(second) == [
+        default_config.DEFAULT_CONFIG["data_vendors"]["fundamental_data"]
+    ]
 
 
 @pytest.mark.unit
