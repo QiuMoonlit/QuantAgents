@@ -158,9 +158,36 @@ pip install .
 For development, install editable with the test and lint extras:
 ```bash
 pip install -e ".[dev]"
-pytest        # 1007 tests
+pytest        # 1008 tests
 ruff check .
 ```
+
+### Windows: the project folder must not contain non-ASCII characters
+
+yfinance reaches Yahoo through curl_cffi, whose native layer decodes file paths
+using the process ANSI code page. When the checkout lives in a folder whose name
+has non-ASCII characters (a Chinese folder name, for instance), `certifi.where()`
+comes back mangled and every market-data call fails before reaching the network:
+
+```
+curl_cffi.requests.exceptions.SSLError: curl: (77) error adding trust anchors
+```
+
+Nothing else is wrong — the bundle is present and valid, curl just cannot read
+the path. Copy the bundle to an ASCII-only location and point curl at it:
+
+```bash
+python scripts\fix_ca_bundle.py
+```
+
+Then set the path it prints in your `.env`:
+
+```
+CURL_CA_BUNDLE=C:\Users\<you>\quantagent-cacert.pem
+```
+
+Re-run the script after recreating the virtualenv. Moving the checkout to an
+ASCII path (e.g. `C:\src\QuantAgent`) avoids the problem entirely.
 
 ### Docker
 
