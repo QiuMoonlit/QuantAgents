@@ -3,11 +3,14 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tradingagents"
-version = "0.5.1"
-description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
+name = "quantagent"
+version = "0.6.0"
+description = "QuantAgent: Multi-Agents LLM Financial Trading Framework"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "Apache-2.0"
+# Derived from TauricResearch/TradingAgents (Apache-2.0). See NOTICE.
+keywords = ["trading", "agents", "llm", "finance", "quant"]
 dependencies = [
     "langchain-core>=0.3.81",
     "langchain-anthropic>=0.3.15",
@@ -40,10 +43,12 @@ bedrock = [
 ]
 
 [project.scripts]
+quantagent = "cli.main:app"
+# Back-compat alias so existing muscle memory and docs keep working.
 tradingagents = "cli.main:app"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["quantagent*", "tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
