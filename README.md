@@ -41,8 +41,10 @@
 - **QuantAgent v0.6.0** — renamed to QuantAgent: the `quantagent` package and CLI
   command, the `QUANTAGENT_*` settings prefix (the old `TRADINGAGENTS_*` names still
   work), and `QuantAgentGraph` as the public graph class. The full upstream suite
-  passes on the rename. Adds a web UI with SSE progress streaming, and a fix for
-  curl_cffi losing the CA bundle under non-ASCII checkout paths.
+  passes on the rename. Adds a web UI with SSE progress streaming, a fix for
+  curl_cffi losing the CA bundle under non-ASCII checkout paths, a structurally
+  carried rating that no longer depends on parsing English prose, and an AkShare
+  vendor for A-share / Hong Kong prices and CAS financials.
 
 Upstream releases, inherited from TradingAgents:
 
@@ -159,7 +161,7 @@ pip install .
 For development, install editable with the test and lint extras:
 ```bash
 pip install -e ".[dev]"
-pytest        # 1036 tests
+pytest        # 1188 tests
 ruff check .
 ```
 
@@ -339,8 +341,40 @@ the backtest harness — is upstream TradingAgents v0.5.1 as shipped.
 **Planned**
 - Chinese-language analyst reports and CLI output beyond what shipped in
   v0.6.0 — the narrative is already localized, the CLI chrome is not.
-- A-share and Hong Kong data vendors alongside the US ones, which means moving
-  off SEC EDGAR for fundamentals and replacing StockTwits/Reddit for sentiment.
+
+**A-share / Hong Kong market data (partial)**
+
+`pip install -e ".[cn]"` and point the relevant categories at `akshare`:
+
+```python
+config["data_vendors"]["core_stock_apis"] = "akshare,yfinance"
+config["data_vendors"]["technical_indicators"] = "akshare,yfinance"
+config["data_vendors"]["fundamental_data"] = "akshare,yfinance"
+```
+
+Wired: daily OHLCV, stockstats indicators, balance sheet / income statement /
+cash flow under 中国企业会计准则, headline metrics, and the settlement price
+series. Tickers use the normal spellings — `600519.SS`, `000001.SZ`, `0700.HK`.
+A US ticker falls out of the AkShare vendor with `NoMarketDataError` and
+continues down the chain, so the two can be listed in one config.
+
+**Not wired yet** — these still resolve to the US vendors, and an A-share run
+will degrade rather than fail:
+
+| Gap | Effect on a Chinese ticker |
+|---|---|
+| News | `stock_news_em` exists in AkShare and is not yet registered. News currently comes from yfinance, which returns nothing for `600519.SS`. |
+| Sentiment | The Sentiment Analyst imports StockTwits and Reddit directly. Both are meaningless for an A-share, so it reads empty. This is the largest remaining gap. |
+| Insider transactions | Form 4 has no A-share equivalent; 董监高持股变动 is a different disclosure with a different cadence. Not implemented. |
+| Macro | FRED is US-only. Chinese macro (PMI, 社融, LPR) is not wired. |
+| `get_verified_market_snapshot` | `agents/tools.py` still imports the Yahoo snapshot builder, so the Market Analyst's verified price snapshot is not available for a Chinese ticker and the analyst is told so. |
+| `get_company_profile` | `agents/context.py` still imports the Yahoo profile fetcher, so the instrument-identity block at the top of every analyst's prompt is empty for a Chinese ticker. It fails open rather than breaking the run. |
+| Hong Kong statements | Price and indicators work for `.HK`; fundamentals are not served by the underlying vendor and say so. |
+| Trading calendar | `MAX_OHLCV_STALE_DAYS` was raised to 20 so Chinese holidays do not read as stale, but there is still no real exchange calendar — `date_window.py` is plain calendar arithmetic and `settlement.py`'s holding-window estimate is tuned for Western holidays. |
+
+The two hardcoded Yahoo imports in `tools.py` and `context.py` are the same
+class of bug just fixed in `settlement.py`, and fail open rather than loudly.
+Both are tracked above rather than left to be discovered.
 
 **Added in v0.6.0**
 - A web UI (`quantagent.web`) with SSE progress streaming — see
