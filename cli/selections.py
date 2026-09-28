@@ -64,7 +64,8 @@ def _prompt_selections(prefs):
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
     welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
     welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
+        "[dim][QuantAgent](https://github.com/qiumoonlit/QuantAgent) — "
+        "a research tool, not financial advice[/dim]"
     )
 
     welcome_box = Panel(

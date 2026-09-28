@@ -185,7 +185,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["header"].update(
         Panel(
             "[bold green]Welcome to QuantAgent CLI[/bold green]\n"
-            "[dim]© [Tauric Research](https://github.com/TauricResearch)[/dim]",
+            "[dim]© 2026 [qiumoonlit](https://github.com/qiumoonlit/QuantAgent) and QuantAgent contributors[/dim]",
             title="Welcome to QuantAgent",
             border_style="green",
             padding=(1, 2),

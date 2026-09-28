@@ -5,14 +5,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Search [existing issues](https://github.com/TauricResearch/TradingAgents/issues?q=is%3Aissue) first, and check that the bug reproduces on the latest release.
+        Search [existing issues](https://github.com/qiumoonlit/QuantAgent/issues?q=is%3Aissue) first, and check that the bug reproduces on the latest release.
         Remove API keys and other secrets from anything you paste.
   - type: input
     id: version
     attributes:
       label: Version
       description: Output of `pip show quantagent | grep Version`, or `git rev-parse --short HEAD` for a source checkout.
-      placeholder: "0.5.1"
+      placeholder: "0.6.0"
     validations:
       required: true
   - type: dropdown
@@ -21,7 +21,7 @@ body:
       label: How you run it
       options:
         - CLI (quantagent)
-        - Python package (TradingAgentsGraph)
+        - Python package (QuantAgentGraph)
         - Backtest (run_backtest or quantagent backtest)
         - Docker
     validations:

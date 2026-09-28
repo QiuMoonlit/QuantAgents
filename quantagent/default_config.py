@@ -31,9 +31,10 @@ _ENV_OVERRIDES = {
     "QUANTAGENT_ANTHROPIC_EFFORT":        "anthropic_effort",
 }
 
-# QuantAgent was upstream's TradingAgents. A .env written against the old
-# prefix keeps working: the legacy name is read only when the canonical one
-# is unset, so the new spelling always wins if both are present.
+# QUANTAGENT_ is the canonical settings prefix. The pre-rebrand TRADINGAGENTS_
+# prefix is still read, so a .env carried over from before the rename keeps
+# working: the legacy name is consulted only when the canonical one is unset,
+# so the new spelling always wins if both are present.
 _ENV_LEGACY_PREFIX = "TRADINGAGENTS_"
 _ENV_PREFIX = "QUANTAGENT_"
 
@@ -96,7 +97,7 @@ def _apply_env_overrides(config: dict) -> dict:
     """Apply QUANTAGENT_* env vars to the config dict in-place.
 
     Also accepts the legacy TRADINGAGENTS_* spelling of each name, so a .env
-    carried over from upstream TradingAgents keeps working. The canonical name
+    carried over from before the rebrand keeps working. The canonical name
     wins when both are set.
     """
     for env_var, key in _ENV_OVERRIDES.items():

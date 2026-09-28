@@ -7,7 +7,7 @@ paths using the process ANSI code page. This project lives in a folder whose
 name contains non-ASCII characters, so ``certifi.where()`` comes back
 mangled:
 
-    C:\\Users\\zt000\\Desktop\\½ļ (8)\\.venv\\...\\certifi\\cacert.pem
+    C:\\Users\\<you>\\Desktop\\½ļ (8)\\.venv\\...\\certifi\\cacert.pem
 
 The file is present and valid, but curl cannot resolve the mangled path and
 fails with ``curl: (77) error adding trust anchors``. Every market-data call

@@ -190,7 +190,7 @@ def test_canonical_prefix_is_applied(monkeypatch):
 
 
 def test_legacy_prefix_still_applies(monkeypatch):
-    """A .env carried over from upstream TradingAgents must keep working."""
+    """A .env carried over from before the rebrand must keep working."""
     dc = _reload_with_env(
         monkeypatch,
         TRADINGAGENTS_LLM_PROVIDER="google",

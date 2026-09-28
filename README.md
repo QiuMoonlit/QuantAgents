@@ -1,84 +1,54 @@
-<p align="center">
-  <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
-</p>
-
-<div align="center" style="line-height: 1;">
-  <a href="https://arxiv.org/abs/2412.20138" target="_blank"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv"/></a>
-  <a href="https://discord.com/invite/hk9PGKShPK" target="_blank"><img alt="Discord" src="https://img.shields.io/badge/Discord-TradingResearch-7289da?logo=discord&logoColor=white&color=7289da"/></a>
-  <a href="https://x.com/TauricResearch" target="_blank"><img alt="X Follow" src="https://img.shields.io/badge/X-TauricResearch-white?logo=x&logoColor=white"/></a>
-  <a href="https://github.com/TauricResearch/" target="_blank"><img alt="Community" src="https://img.shields.io/badge/GitHub_Community-TauricResearch-14C290?logo=discourse"/></a>
-</div>
-<br>
 <div align="center">
-  <a href="https://github.com/TauricResearch" target="_blank"><img alt="TradingAgents #1 Repository of the Day" src="https://trendshift.io/api/badge/repositories/16192" width="250" height="55"/></a>
-</div>
-<br>
-<div align="center">
-  <!-- Keep these links. Translations will automatically update with the README. -->
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=es">Español</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=fr">français</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ja">日本語</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ko">한국어</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=pt">Português</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ru">Русский</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=zh">中文</a>
+  <h1>QuantAgent</h1>
+  <p><b>A multi-agent LLM trading research framework, with A-share and Hong Kong market data.</b></p>
 </div>
 
 ---
 
-# QuantAgent: Multi-Agents LLM Financial Trading Framework
+# QuantAgent
 
-> **QuantAgent** is a fork of [TradingAgents](https://github.com/TauricResearch/TradingAgents)
-> by Tauric Research, pinned at upstream **v0.5.1** and rebranded as its own project.
-> It keeps the upstream framework intact and layers on the changes listed under
-> [What QuantAgent changes](#what-quantagent-changes). Licensed under Apache-2.0 —
-> see [NOTICE](NOTICE) for the derivation record and attribution.
+Four analyst agents gather market, news, fundamental and retail-sentiment
+evidence in parallel. A bull and a bear debate it. A research manager rules on
+the debate, a trader proposes an action, three risk agents stress-test it, and
+a portfolio manager issues the final rating. Every agent's reasoning is written
+to a decision log, and past decisions are settled against realised prices so the
+framework can learn from its own track record.
 
-## News
+It runs against US markets and against A-shares and Hong Kong. Chinese tickers
+get their own price history, financial statements under 中国企业会计准则,
+per-stock news, and retail sentiment from 东方财富股吧 — not two English-language
+platforms that carry nothing about a 600519.
 
-<!-- news:start -->
-- **QuantAgent v0.6.0** — renamed to QuantAgent: the `quantagent` package and CLI
-  command, the `QUANTAGENT_*` settings prefix (the old `TRADINGAGENTS_*` names still
-  work), and `QuantAgentGraph` as the public graph class. The full upstream suite
-  passes on the rename. Adds a web UI with SSE progress streaming, a fix for
-  curl_cffi losing the CA bundle under non-ASCII checkout paths, a structurally
-  carried rating that no longer depends on parsing English prose, and an AkShare
-  vendor for A-share / Hong Kong prices and CAS financials.
+Reports are written in Chinese while the machine-read rating vocabulary stays
+English, so the signal parser, the decision log and the backtest scorer all
+agree on one spelling.
 
-Upstream releases, inherited from TradingAgents:
+> **QuantAgent is a research tool, not financial advice.** Nothing it outputs is
+> a recommendation to buy or sell anything. Trading performance depends on the
+> backbone models, temperature, period, data quality, and other
+> non-deterministic factors.
 
-- [2026-09] **TradingAgents v0.5.1** released with a package layout organised by what each module holds (import paths moved), optional Jev screening of social posts, GPT-6 Sol and Luna as the default models, and fixes to run isolation and SEC EDGAR statements.
-- [2026-09] **TradingAgents v0.5.0** released with point-in-time integrity across every dated path, SEC EDGAR fundamentals served as filed, backtesting over a ticker and date grid, portfolio-aware runs, and current model lineups across every provider.
-- [2026-08] **TradingAgents v0.4.0** released with look-ahead / point-in-time fixes across FRED macro, social sentiment, and the decision-log memory; clearer decision signals; working CLI checkpoint resume; Trader price grounding; and the GPT-5.6 and GLM-5.3 models.
+## Quick start
 
-Full release notes are in [CHANGELOG.md](CHANGELOG.md).
+```bash
+pip install -e ".[web,cn]"
 
-<details>
-<summary>Earlier news</summary>
+export DEEPSEEK_API_KEY=sk-...
+export QUANTAGENT_LLM_PROVIDER=deepseek
+export QUANTAGENT_OUTPUT_LANGUAGE="Simplified Chinese"
 
-- [2026-07] **TradingAgents v0.3.1** released with correctness and stability fixes: Alpha Vantage look-ahead filtering, graph-router crash-safety, graph-shape-aware checkpoint resume, working crypto sentiment sources, a configurable LLM retry budget, Bedrock API-key auth, and Claude Sonnet 5 / Fable 5 support.
-- [2026-06] **TradingAgents v0.3.0** released with a verified data-access contract, an expanded provider registry (NVIDIA, Kimi, Groq, Mistral, Bedrock, and any OpenAI-compatible endpoint), FRED and Polymarket data vendors, a current-generation model catalog, and a CI gate.
-- [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening.
-- [2026-04] **TradingAgents v0.2.4** released with structured-output agents (Research Manager, Trader, Portfolio Manager), LangGraph checkpoint resume, persistent decision log, DeepSeek/Qwen/GLM/Azure provider support, Docker, and a Windows UTF-8 encoding fix.
-- [2026-03] **TradingAgents v0.2.3** released with multi-language support, GPT-5.4 family models, unified model catalog, backtesting date fidelity, and proxy support.
-- [2026-03] **TradingAgents v0.2.2** released with GPT-5.4/Gemini 3.1/Claude 4.6 model coverage, five-tier rating scale, OpenAI Responses API, Anthropic effort control, and cross-platform stability.
-- [2026-02] **TradingAgents v0.2.0** released with multi-provider LLM support (GPT-5.x, Gemini 3.x, Claude 4.x, Grok 4.x) and improved system architecture.
-- [2026-01] **Trading-R1** [Technical Report](https://arxiv.org/abs/2509.11420) released, with [Terminal](https://github.com/TauricResearch/Trading-R1) expected to land soon.
+quantagent            # terminal
+quantagent-web        # http://127.0.0.1:8420
+```
 
-</details>
-<!-- news:end -->
+Then analyse `600519.SS`, `0700.HK` or `NVDA`. Full setup, including the
+Windows CA-bundle workaround and the A-share coverage table, is below.
 
 <div align="center">
 
-🚀 [Framework](#quantagent-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🌐 [Web UI](#web-ui) | 📦 [Package Usage](#quantagent-package) | 🔀 [What QuantAgent changes](#what-quantagent-changes) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [Framework](#quantagent-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🌐 [Web UI](#web-ui) | 📦 [Package Usage](#quantagent-package) | 🔀 [What this project adds](#what-this-project-adds) | 🤝 [Contributing](#contributing) | 📄 [Credits](#credits)
 
 </div>
-
-> 🎉 **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
->
-> So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
-
 ## QuantAgent Framework
 
 QuantAgent is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
@@ -87,13 +57,13 @@ QuantAgent is a multi-agent trading framework that mirrors the dynamics of real-
   <img src="assets/schema.png" style="width: 100%; height: auto;">
 </p>
 
-> QuantAgent is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. [It is not intended as financial, investment, or trading advice.](https://tauric.ai/disclaimer/)
+> QuantAgent is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. It is not intended as financial, investment, or trading advice.
 
 Our framework decomposes complex trading tasks into specialized roles.
 
 ### Analyst Team
 - Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
-- Sentiment Analyst: Aggregates news headlines, StockTwits, and Reddit chatter into a single sentiment read to gauge short-term market mood.
+- Sentiment Analyst: Aggregates news and retail chatter into a single sentiment read to gauge short-term market mood. The platforms are the ones the market actually uses: StockTwits and Reddit for US tickers, 东方财富股吧 for Chinese ones.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
 
@@ -127,11 +97,9 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### Installation
 
-Clone QuantAgent (or add it as your own fork's remote):
 ```bash
-git clone <your-fork-url> TradingAgents
-cd TradingAgents
-git remote -v          # origin = yours, upstream = TauricResearch/TradingAgents
+git clone https://github.com/qiumoonlit/QuantAgent.git
+cd QuantAgent
 ```
 
 Create a virtual environment in any of your favorite environment managers:
@@ -323,20 +291,21 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
-## What QuantAgent changes
+## What this project adds
 
-Everything below is a QuantAgent modification. Everything else — the multi-agent
-graph, the analyst/researcher/risk debate, the vendor router, the decision log,
-the backtest harness — is upstream TradingAgents v0.5.1 as shipped.
+QuantAgent is a derived work — see [NOTICE](NOTICE) for the Apache-2.0
+derivation record and attribution. The multi-agent graph, the
+analyst/researcher/risk debate, the vendor router, the decision log and the
+backtest harness are the inherited framework. Everything below is what this
+project adds on top.
 
 **Naming and packaging**
-- Distribution, package and CLI command renamed to `quantagent` / `quantagent`.
-- Public graph class renamed to `QuantAgentGraph`.
-- Settings prefix renamed to `QUANTAGENT_*`. Every legacy `TRADINGAGENTS_*` name
-  is still read, and the CLI's "skip this prompt" checks accept either, so an
-  upstream `.env` keeps working unchanged. The new spelling wins when both are set.
-- State directory moved from `~/.tradingagents` to `~/.quantagent`.
-- See [NOTICE](NOTICE) for the Apache-2.0 derivation record.
+- Distribution, package and CLI command: `quantagent` / `quantagent`.
+- Public graph class: `QuantAgentGraph`.
+- Settings prefix: `QUANTAGENT_*`. Every legacy `TRADINGAGENTS_*` name is still
+  read, and the CLI's "skip this prompt" checks accept either, so an older
+  `.env` keeps working unchanged. The new spelling wins when both are set.
+- State directory: `~/.quantagent`.
 
 **Planned**
 - Chinese-language analyst reports and CLI output beyond what shipped in
@@ -560,25 +529,28 @@ Backtest results are not guaranteed to match any published figure. Returns depen
 
 ## Contributing
 
-Contributions are welcome: bug fixes, documentation, and feature ideas; past contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
+Bug fixes, documentation and feature ideas are welcome. Contributions are
+credited per release in [`CHANGELOG.md`](CHANGELOG.md).
 
-## Citation
+## Credits
 
-QuantAgent is a derivative work, so please cite **both** the upstream paper below
-and this fork.
-
-If you use QuantAgent, cite the work it is built on:
-
-> Please reference our work if you find *TradingAgents* provides you with some help :)
+QuantAgent is built on an existing open-source framework, and the paper that
+introduced the multi-agent trading design is the reference for the architecture
+here. If your work uses it, please cite the original:
 
 ```
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,
-      title={TradingAgents: Multi-Agents LLM Financial Trading Framework}, 
+      title={TradingAgents: Multi-Agents LLM Financial Trading Framework},
       author={Yijia Xiao and Edward Sun and Di Luo and Wei Wang},
       year={2025},
       eprint={2412.20138},
       archivePrefix={arXiv},
       primaryClass={q-fin.TR},
-      url={https://arxiv.org/abs/2412.20138}, 
+      url={https://arxiv.org/abs/2412.20138},
 }
 ```
+
+The A-share and Hong Kong market data layer, the web UI, the cancellation and
+observability work, and the Chinese-language output are this project's own
+contributions to that derived work. See [NOTICE](NOTICE) and
+[LICENSE](LICENSE) for the full derivation record.
