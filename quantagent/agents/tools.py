@@ -11,7 +11,6 @@ from langgraph.prebuilt import InjectedState
 
 from quantagent.dataflows.date_window import as_of, as_of_window
 from quantagent.dataflows.router import route_to_vendor
-from quantagent.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
 
 @tool
@@ -83,7 +82,14 @@ def get_verified_market_snapshot(
     price levels, Bollinger bands, RSI, MACD, moving averages, support /
     resistance, or historical comparisons, and treat it as the source of truth.
     """
-    return build_verified_market_snapshot(symbol, as_of(curr_date, trade_date), look_back_days)
+    # Routed, not imported from a vendor. Importing the Yahoo snapshot builder
+    # here meant a Chinese ticker asked Yahoo for a stock it does not carry, and
+    # because LangGraph's default tool-error handler re-raises, that ended the
+    # whole run rather than degrading one tool call.
+    return route_to_vendor(
+        "get_verified_market_snapshot", symbol, as_of(curr_date, trade_date),
+        look_back_days,
+    )
 
 
 @tool

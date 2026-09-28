@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import copy
 
-import pandas as pd
 import pytest
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, ToolMessage
@@ -20,7 +19,7 @@ from pydantic import Field
 from quantagent.agents import context, schemas
 from quantagent.agents.analysts import sentiment_analyst
 from quantagent.dataflows import router
-from quantagent.dataflows.vendors.yahoo import market as yahoo_market, snapshot
+from quantagent.dataflows.vendors.yahoo import market as yahoo_market
 from quantagent.default_config import DEFAULT_CONFIG
 from quantagent.graph import trading_graph
 
@@ -98,12 +97,6 @@ def offline(monkeypatch, tmp_path):
         for vendor in vendors:
             monkeypatch.setitem(vendors, vendor,
                                 lambda *a, _m=method, **k: called.add(_m) or f"{_m} data")
-    prices = pd.DataFrame({
-        "Date": pd.bdate_range(end=TRADE_DATE, periods=60),
-        "Open": 100.0, "High": 101.0, "Low": 99.0, "Close": 100.5, "Volume": 1_000_000,
-    })
-    monkeypatch.setattr(snapshot, "load_ohlcv",
-                        lambda *a, **k: called.add("ohlcv") or prices.copy())
     monkeypatch.setattr(sentiment_analyst, "fetch_stocktwits_messages", lambda *a, **k: "no posts")
     monkeypatch.setattr(sentiment_analyst, "fetch_reddit_posts", lambda *a, **k: "no posts")
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: type("T", (), {"info": {"longName": "NVIDIA"}})())
@@ -130,11 +123,15 @@ def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, st
     for key in ("market_report", "sentiment_report", "news_report", "fundamentals_report",
                 "investment_plan", "trader_investment_plan", "final_trade_decision"):
         assert state[key].strip(), key
-    tool_methods = {"get_stock_data", "get_indicators", "get_news", "get_global_news",
-                    "get_macro_indicators", "get_prediction_markets", "get_fundamentals",
-                    "get_balance_sheet", "get_cashflow", "get_income_statement",
-                    "get_insider_transactions", "ohlcv"}
-    assert offline == tool_methods
+    # Every router method a full run reaches. Not all are agent tools:
+    # get_verified_market_snapshot is one that now goes through the registry.
+    # The Yahoo snapshot's load_ohlcv is no longer patched — that call is
+    # behind the router like everything else, so the stub above covers it.
+    reached = {"get_stock_data", "get_indicators", "get_news", "get_global_news",
+               "get_macro_indicators", "get_prediction_markets", "get_fundamentals",
+               "get_balance_sheet", "get_cashflow", "get_income_statement",
+               "get_insider_transactions", "get_verified_market_snapshot"}
+    assert offline == reached
     assert [e["rating"] for e in graph.memory_log.load_entries()] == ["Overweight"]
 
 

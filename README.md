@@ -363,18 +363,24 @@ will degrade rather than fail:
 
 | Gap | Effect on a Chinese ticker |
 |---|---|
-| News | `stock_news_em` exists in AkShare and is not yet registered. News currently comes from yfinance, which returns nothing for `600519.SS`. |
-| Sentiment | The Sentiment Analyst imports StockTwits and Reddit directly. Both are meaningless for an A-share, so it reads empty. This is the largest remaining gap. |
+| News | `stock_news_em` exists in AkShare and is not yet registered. News comes from yfinance, which returns little or nothing for `600519.SS` — the News Analyst will have almost nothing to work with. This is the largest remaining gap. |
+| Sentiment | The Sentiment Analyst imports StockTwits and Reddit directly. Both are meaningless for an A-share, so it reads empty. |
 | Insider transactions | Form 4 has no A-share equivalent; 董监高持股变动 is a different disclosure with a different cadence. Not implemented. |
 | Macro | FRED is US-only. Chinese macro (PMI, 社融, LPR) is not wired. |
-| `get_verified_market_snapshot` | `agents/tools.py` still imports the Yahoo snapshot builder, so the Market Analyst's verified price snapshot is not available for a Chinese ticker and the analyst is told so. |
-| `get_company_profile` | `agents/context.py` still imports the Yahoo profile fetcher, so the instrument-identity block at the top of every analyst's prompt is empty for a Chinese ticker. It fails open rather than breaking the run. |
 | Hong Kong statements | Price and indicators work for `.HK`; fundamentals are not served by the underlying vendor and say so. |
 | Trading calendar | `MAX_OHLCV_STALE_DAYS` was raised to 20 so Chinese holidays do not read as stale, but there is still no real exchange calendar — `date_window.py` is plain calendar arithmetic and `settlement.py`'s holding-window estimate is tuned for Western holidays. |
 
-The two hardcoded Yahoo imports in `tools.py` and `context.py` are the same
-class of bug just fixed in `settlement.py`, and fail open rather than loudly.
-Both are tracked above rather than left to be discovered.
+### Two things that look like gaps and are not
+
+*Company profile.* `agents/context.py` still reads the instrument identity
+(name, sector, industry, exchange) from the Yahoo vendor, and it works for
+Chinese tickers — `600519.SS` resolves to Kweichow Moutai / Consumer Defensive,
+`0700.HK` to Tencent Holdings. Verified, not assumed.
+
+*Ticker spelling.* Pass the exchange suffix: `600519.SS`, `000001.SZ`,
+`0700.HK`. A bare `600519` reaches the AkShare vendor correctly, but the
+identity lookup asks Yahoo, which needs the suffix and returns nothing without
+it.
 
 **Added in v0.6.0**
 - A web UI (`quantagent.web`) with SSE progress streaming — see

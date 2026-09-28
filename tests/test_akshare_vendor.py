@@ -345,6 +345,36 @@ class TestRouterIntegration:
         for info in TOOLS_CATEGORIES.values():
             assert "get_closes" not in info["tools"]
 
+    def test_the_verified_snapshot_is_routed_not_imported(self):
+        """agents/tools.py used to import the Yahoo snapshot builder, so a
+        Chinese ticker asked Yahoo for a stock it does not carry. LangGraph's
+        default tool-error handler re-raises, so that ended the whole run
+        rather than degrading one tool call."""
+        import ast
+        from pathlib import Path
+
+        from quantagent.agents import tools
+
+        tree = ast.parse(Path(tools.__file__).read_text(encoding="utf-8"))
+        for node in tree.body:
+            if isinstance(node, ast.ImportFrom) and node.module:
+                assert "vendors.yahoo" not in node.module, (
+                    "tools must route through the registry, not import a vendor"
+                )
+
+    def test_the_snapshot_renderer_is_shared_not_duplicated(self):
+        """Every market must get the same ground-truth guard rails, so the
+        rendering lives in one place and vendors supply only the frame."""
+        from quantagent.dataflows.vendors.akshare import market as cn_market
+        from quantagent.dataflows.vendors.yahoo import snapshot as yf_snapshot
+
+        assert cn_market.get_cn_verified_market_snapshot is not None
+        assert yf_snapshot.build_verified_market_snapshot is not None
+        # Both must reach the one renderer.
+        import inspect
+        cn_src = inspect.getsource(cn_market.get_cn_verified_market_snapshot)
+        assert "render_verified_snapshot" in cn_src
+
 
 class TestLayering:
     def test_akshare_is_imported_lazily_not_at_module_scope(self):

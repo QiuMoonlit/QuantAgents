@@ -156,6 +156,25 @@ def get_cn_stock_stats_indicator(
         ) from exc
 
 
+def get_cn_verified_market_snapshot(
+    symbol: str,
+    curr_date: str,
+    look_back_days: int = 30,
+    indicators=None,
+) -> str:
+    """Ground-truth snapshot for a Chinese ticker.
+
+    The rendering is the shared one every vendor uses, so the guard rails
+    against a confabulated price or indicator are identical across markets; only
+    the frame behind it is fetched from AkShare.
+    """
+    from quantagent.dataflows.vendors.yahoo.snapshot import render_verified_snapshot
+
+    return render_verified_snapshot(
+        _history(symbol, curr_date), symbol, curr_date, look_back_days, indicators,
+    )
+
+
 def get_cn_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     """Daily closes over a range, for the settlement and alpha layers."""
     cn = resolve_cn_symbol_or_skip(symbol)

@@ -16,6 +16,7 @@ from quantagent.dataflows.vendors.akshare.market import (
     get_cn_closes,
     get_cn_stock_data,
     get_cn_stock_stats_window,
+    get_cn_verified_market_snapshot,
 )
 from quantagent.dataflows.vendors.alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
@@ -50,6 +51,7 @@ from quantagent.dataflows.vendors.yahoo.market import (
     get_YFin_data_online,
 )
 from quantagent.dataflows.vendors.yahoo.news import get_global_news_yfinance, get_news_yfinance
+from quantagent.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +185,14 @@ VENDOR_METHODS = {
         "akshare": get_cn_closes,
         "yfinance": get_yfinance_closes,
     },
+    # The Market Analyst's ground-truth price snapshot. It used to be imported
+    # from the Yahoo vendor by agents/tools.py, so a Chinese ticker asked Yahoo
+    # for a stock it does not carry and the tool raised through LangGraph's
+    # default error handler, killing the whole run.
+    "get_verified_market_snapshot": {
+        "akshare": get_cn_verified_market_snapshot,
+        "yfinance": build_verified_market_snapshot,
+    },
 }
 
 
@@ -193,6 +203,11 @@ NON_TOOL_METHOD_CATEGORIES = {
     # The settlement and alpha layer scores past decisions against prices; it
     # should use whatever chain priced the analysis.
     "get_closes": "core_stock_apis",
+    # The Market Analyst's ground-truth snapshot, for the same reason: it used
+    # to be imported from a single vendor, so a Chinese ticker asked Yahoo for a
+    # stock it does not carry and the tool raised through LangGraph's default
+    # error handler, ending the run.
+    "get_verified_market_snapshot": "core_stock_apis",
 }
 
 

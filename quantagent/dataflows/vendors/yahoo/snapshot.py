@@ -61,17 +61,32 @@ def _fmt(value) -> str:
     return str(value)
 
 
-def build_verified_market_snapshot(
+def render_verified_snapshot(
+    rows: pd.DataFrame,
     symbol: str,
     curr_date: str,
     look_back_days: int = 30,
     indicators: Iterable[str] | None = None,
 ) -> str:
-    """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
+    """Render the snapshot from an already-verified OHLCV frame.
+
+    Vendor-agnostic: the only thing a market-specific vendor has to supply is
+    the frame, so every market gets the same ground-truth snapshot, the same
+    indicator set, and the same guard rails against confabulated numbers. A
+    second copy of this renderer for another market would only be able to drift.
+    """
+    if rows is None or rows.empty:
+        raise ValueError(f"No OHLCV rows on or before {curr_date} for {symbol}.")
+
     # `df` keeps the original capitalized OHLCV columns (Open/High/Low/Close/
     # Volume); stockstats `wrap()` lowercases columns and adds indicator
     # columns, so read raw prices from `df` and indicators from `stock_df`.
-    df = _verified_rows(symbol, curr_date)
+    df = rows.copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date"])
+    df = df[df["Date"] <= pd.to_datetime(curr_date)].sort_values("Date")
+    if df.empty:
+        raise ValueError(f"No OHLCV rows on or before {curr_date} for {symbol}.")
     stock_df = wrap(df.copy())
 
     selected = tuple(indicators or DEFAULT_SNAPSHOT_INDICATORS)
@@ -123,3 +138,16 @@ def build_verified_market_snapshot(
         "dates and prices.",
     ]
     return "\n".join(lines)
+
+
+def build_verified_market_snapshot(
+    symbol: str,
+    curr_date: str,
+    look_back_days: int = 30,
+    indicators: Iterable[str] | None = None,
+) -> str:
+    """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
+    return render_verified_snapshot(
+        _verified_rows(symbol, curr_date), symbol, curr_date,
+        look_back_days, indicators,
+    )
