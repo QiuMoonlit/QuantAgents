@@ -98,7 +98,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 ### Installation
 
 ```bash
-git clone https://github.com/qiumoonlit/QuantAgent.git
+git clone https://github.com/QiuMoonlit/moon.git
 cd QuantAgent
 ```
 

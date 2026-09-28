@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions and showcases
-    url: https://github.com/qiumoonlit/QuantAgent/discussions
+    url: https://github.com/QiuMoonlit/moon/discussions
     about: Usage questions, ideas, and projects built on QuantAgent
   - name: Security vulnerability
-    url: https://github.com/qiumoonlit/QuantAgent/security/advisories/new
+    url: https://github.com/QiuMoonlit/moon/security/advisories/new
     about: Report privately; please do not open a public issue

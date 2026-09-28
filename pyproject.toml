@@ -5,12 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "quantagent"
 version = "0.6.0"
-description = "QuantAgent: Multi-Agents LLM Financial Trading Framework"
+description = "QuantAgent: A Multi-Agent LLM Trading Research Framework, with A-share and Hong Kong market data"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
-# Derived from TauricResearch/TradingAgents (Apache-2.0). See NOTICE.
-keywords = ["trading", "agents", "llm", "finance", "quant"]
+# Derived work. Apache-2.0 sections 4(a) and 4(d) require the upstream
+# attribution in LICENSE and NOTICE; see NOTICE for the full record.
+keywords = ["trading", "agents", "llm", "finance", "quant", "a-share", "hong-kong", "china"]
 dependencies = [
     "langchain-core>=0.3.81",
     "langchain-anthropic>=0.3.15",
@@ -51,6 +52,12 @@ web = [
 cn = [
     "akshare>=1.16.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/QiuMoonlit/moon"
+Repository = "https://github.com/QiuMoonlit/moon"
+Issues = "https://github.com/QiuMoonlit/moon/issues"
+Changelog = "https://github.com/QiuMoonlit/moon/blob/main/CHANGELOG.md"
 
 [project.scripts]
 quantagent = "cli.main:app"

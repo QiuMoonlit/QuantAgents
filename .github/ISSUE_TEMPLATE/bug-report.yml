@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Search [existing issues](https://github.com/qiumoonlit/QuantAgent/issues?q=is%3Aissue) first, and check that the bug reproduces on the latest release.
+        Search [existing issues](https://github.com/QiuMoonlit/moon/issues?q=is%3Aissue) first, and check that the bug reproduces on the latest release.
         Remove API keys and other secrets from anything you paste.
   - type: input
     id: version

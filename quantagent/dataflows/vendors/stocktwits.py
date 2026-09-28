@@ -28,7 +28,7 @@ from quantagent.dataflows.symbols import crypto_base
 logger = logging.getLogger(__name__)
 
 _API = "https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json"
-_UA = "quantagent/0.6 (+https://github.com/qiumoonlit/QuantAgent)"
+_UA = "quantagent/0.6 (+https://github.com/QiuMoonlit/moon)"
 
 
 def _created_at(message) -> datetime | None:
