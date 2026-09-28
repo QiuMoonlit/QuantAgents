@@ -31,12 +31,22 @@ import shutil
 import sys
 from pathlib import Path
 
-# ASCII-only destination. Falls back to TEMP if USERPROFILE is not ASCII.
+
+# ASCII-only destination, first writable one wins.
 def _ascii_home() -> Path:
     for candidate in (os.environ.get("USERPROFILE"), os.environ.get("HOME"), os.getcwd()):
-        if candidate and candidate.isascii():
-            return Path(candidate)
-    raise SystemExit("no ASCII-only directory available for the CA bundle copy")
+        if not candidate or not candidate.isascii():
+            continue
+        path = Path(candidate)
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            probe = path / ".quantagent-write-probe"
+            probe.touch()
+            probe.unlink()
+        except OSError:
+            continue
+        return path
+    raise SystemExit("no writable ASCII-only directory found for the CA bundle copy")
 
 
 def main() -> int:
@@ -52,7 +62,16 @@ def main() -> int:
         return 1
 
     target = _ascii_home() / "quantagent-cacert.pem"
-    shutil.copyfile(source, target)
+    try:
+        shutil.copyfile(source, target)
+    except OSError as exc:
+        print(f"could not write {target}: {exc}", file=sys.stderr)
+        print(
+            "Copy the bundle by hand from a terminal that can write there:\n"
+            f"  copy \"{source}\" \"{target}\"",
+            file=sys.stderr,
+        )
+        return 1
 
     print(f"copied {source.stat().st_size} bytes")
     print(f"      -> {target}")
