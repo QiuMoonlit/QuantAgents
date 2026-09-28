@@ -647,6 +647,8 @@ def ask_output_language(default=None) -> str:
     """
     choices = [
         questionary.Choice("English (default)", "English"),
+        questionary.Choice("Simplified Chinese (简体中文)", "Simplified Chinese"),
+        questionary.Choice("Traditional Chinese (繁體中文)", "Traditional Chinese"),
         questionary.Choice("Chinese (中文)", "Chinese"),
         questionary.Choice("Japanese (日本語)", "Japanese"),
         questionary.Choice("Korean (한국어)", "Korean"),

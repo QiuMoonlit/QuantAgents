@@ -8,6 +8,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, RemoveMessage
 
+from quantagent.agents.rating import RATINGS_5_TIER
 from quantagent.dataflows.date_window import get_current_date
 from quantagent.dataflows.vendors.yahoo.fundamentals import get_company_profile
 
@@ -22,12 +23,31 @@ def get_language_instruction() -> str:
     analysts, researchers, debaters, research manager, trader, and
     portfolio manager — so a non-English run produces a fully localized
     report rather than a mix of languages.
+
+    The directive has to protect one thing: the report is not only prose.
+    ``agents.rating.extract_rating`` reads the final decision with English-only
+    regexes, and the decision log, the backtest scorer and the reflection layer
+    all consume the signal derived from it. A model that helpfully translates
+    "**Rating**: Buy" into "**评级**: 买入" produces a run whose signal degrades
+    to REVIEW — the analysis still reads fine, but nothing is scored. So the
+    directive asks for the target language in the narrative and keeps the
+    machine-read vocabulary in English.
     """
     from quantagent.dataflows.config import get_config
+
     lang = get_config().get("output_language", "English")
     if lang.strip().lower() == "english":
         return ""
-    return f" Write your entire response in {lang}."
+    return (
+        f" Write your entire response in {lang}."
+        f" Keep these machine-read labels and values in English, spelled exactly"
+        f" as written, because downstream code parses them:"
+        f' "**Rating**", "**Action**", "**Recommendation**",'
+        f' "**Overall Sentiment**", "**Confidence**",'
+        f' and the rating values "{" / ".join(RATINGS_5_TIER)}".'
+        f" Write everything else - the analysis, the reasoning, the section"
+        f" prose - in {lang}."
+    )
 
 
 def opponent_argument_or_opening(text: str, opponent: str) -> str:

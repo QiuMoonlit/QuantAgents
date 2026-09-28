@@ -46,6 +46,23 @@ class TestLanguageInstruction:
         assert "中文" in out
         assert "entire response" in out
 
+    def test_directive_protects_the_parsed_vocabulary(self):
+        """A localized run must not translate the strings rating.py reads.
+
+        extract_rating matches English regexes only, so a model that renders
+        "**Rating**: 买入" instead of "**Rating**: Buy" yields REVIEW and the
+        run is never scored. The directive has to name the vocabulary to keep.
+        """
+        from quantagent.agents.rating import RATINGS_5_TIER
+        from quantagent.dataflows.config import set_config
+
+        set_config({"output_language": "Simplified Chinese"})
+        out = get_language_instruction()
+        for label in ("**Rating**", "**Action**", "**Recommendation**"):
+            assert label in out, f"{label} missing from the language directive"
+        for rating in RATINGS_5_TIER:
+            assert rating in out, f"rating {rating!r} missing from the directive"
+
 
 @pytest.mark.unit
 @pytest.mark.parametrize("rel", REPORT_AGENTS)
