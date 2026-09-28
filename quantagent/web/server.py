@@ -521,6 +521,16 @@ def teams() -> dict:
 def config() -> dict:
     import quantagent  # noqa: F401
     from quantagent.default_config import DEFAULT_CONFIG
+    from quantagent.llm_clients.api_key_env import get_api_key_env
+
+    # Ask the provider registry which variable holds this provider's key rather
+    # than naming a couple of them here: a hardcoded pair reports "no key" for
+    # the other seventeen providers even when they are configured correctly.
+    provider = DEFAULT_CONFIG["llm_provider"]
+    key_env = get_api_key_env(provider)
+    # None means the provider authenticates some other way (ollama is keyless,
+    # bedrock uses the AWS credential chain), so there is nothing to be missing.
+    api_key_configured = bool(os.environ.get(key_env)) if key_env else True
 
     return {
         "llm_provider": DEFAULT_CONFIG["llm_provider"],
@@ -532,9 +542,7 @@ def config() -> dict:
         "results_dir": DEFAULT_CONFIG["results_dir"],
         "state_dirs_writable": state_dir_problem() is None,
         "state_dir_error": state_dir_problem(),
-        "api_key_configured": bool(
-            os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY")
-        ),
+        "api_key_configured": api_key_configured,
         "pricing": sorted(MODEL_PRICING),
     }
 
