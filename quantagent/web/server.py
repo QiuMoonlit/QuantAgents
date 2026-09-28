@@ -74,7 +74,7 @@ TEAMS: list[dict[str, Any]] = [
         "agents": [
             {"key": "market", "label": "Market Analyst", "label_zh": "技术分析师",
              "field": "market_report"},
-            {"key": "sentiment", "label": "Sentiment Analyst", "label_zh": "情绪分析师",
+            {"key": "social", "label": "Sentiment Analyst", "label_zh": "情绪分析师",
              "field": "sentiment_report"},
             {"key": "news", "label": "News Analyst", "label_zh": "新闻分析师",
              "field": "news_report"},
@@ -156,7 +156,7 @@ SEQUENTIAL_ORDER = [
     "bull", "bear", "research_manager", "trader",
     "aggressive", "conservative", "neutral", "portfolio_manager",
 ]
-ANALYST_KEYS = ("market", "sentiment", "news", "fundamentals")
+ANALYST_KEYS = ("market", "social", "news", "fundamentals")
 
 
 def derive_status(state: dict, previous: dict | None = None) -> dict[str, str]:
@@ -286,11 +286,24 @@ def _evict_runs() -> None:
         del RUNS[run.id]
 
 
+def _known_analyst_keys() -> set[str]:
+    """The analyst keys the graph accepts, read from its own registry.
+
+    Duplicating this list is how the web UI came to offer "sentiment" while
+    the graph wanted "social": the validator and the graph then agreed on
+    nothing and every sentiment run died in ``setup_graph``. There is one
+    source of truth and this reads it.
+    """
+    from quantagent.graph.analyst_execution import ANALYST_NODE_SPECS
+
+    return set(ANALYST_NODE_SPECS)
+
+
 class AnalyzeRequest(BaseModel):
     ticker: str = Field(min_length=1, max_length=32)
     trade_date: str
     analysts: list[str] = Field(
-        default_factory=lambda: ["market", "news", "fundamentals", "sentiment"]
+        default_factory=lambda: ["market", "news", "fundamentals", "social"]
     )
     deep_think_llm: str | None = None
     quick_think_llm: str | None = None
@@ -321,10 +334,13 @@ class AnalyzeRequest(BaseModel):
     @field_validator("analysts")
     @classmethod
     def _known_analysts(cls, value: list[str]) -> list[str]:
-        known = {"market", "news", "fundamentals", "sentiment"}
+        known = _known_analyst_keys()
         unknown = [v for v in value if v not in known]
         if unknown:
-            raise ValueError(f"unknown analyst(s): {', '.join(unknown)}")
+            raise ValueError(
+                f"unknown analyst(s): {', '.join(unknown)}; "
+                f"the graph accepts {', '.join(sorted(known))}"
+            )
         if not value:
             raise ValueError("select at least one analyst")
         return value

@@ -6,6 +6,7 @@ the part with real logic, so that is what is pinned here. Nothing in this file
 touches the network or an LLM.
 """
 import json
+import re
 import time
 from datetime import date, timedelta
 from pathlib import Path
@@ -27,6 +28,15 @@ from quantagent.web.server import (  # noqa: E402
 )
 
 STATIC_DIR = Path(server.__file__).parent / "static"
+
+# The state fields the browser renders as report tabs, mirrored from
+# quantagent/web/static/app.js. Pinned here so a rename on either side is caught.
+REPORT_KEYS = (
+    "market_report", "news_report", "fundamentals_report", "sentiment_report",
+    "bull_history", "bear_history", "judge_decision", "trader_investment_plan",
+    "aggressive_history", "conservative_history", "neutral_history",
+    "final_trade_decision",
+)
 
 
 def test_the_asgi_app_is_importable():
@@ -94,7 +104,7 @@ class TestDeriveStatus:
         """They run in parallel, so marking only the first as running lies."""
         status = derive_status({"market_report": "# 技术分析"})
         assert status["market"] == "done"
-        assert status["sentiment"] == "running"
+        assert status["social"] == "running"
         assert status["news"] == "running"
         assert status["fundamentals"] == "running"
         assert status["bull"] == "pending", "the debate has not started yet"
@@ -104,7 +114,7 @@ class TestDeriveStatus:
                  "fundamentals_report": "z", "sentiment_report": "w",
                  "investment_debate_state": {"bull_history": "b"}}
         status = derive_status(state)
-        for key in ("market", "news", "fundamentals", "sentiment", "bull"):
+        for key in ("market", "news", "fundamentals", "social", "bull"):
             assert status[key] == "done", key
         assert status["bear"] == "running", "debate is sequential after the analysts"
         assert status["research_manager"] == "pending"
@@ -227,10 +237,19 @@ class TestAnalystValidation:
         with pytest.raises(ValidationError):
             server.AnalyzeRequest(ticker="NVDA", trade_date="2026-09-01", analysts=[])
 
-    @pytest.mark.parametrize("key", ["market", "news", "fundamentals", "sentiment"])
+    @pytest.mark.parametrize("key", ["market", "news", "fundamentals", "social"])
     def test_accepts_each_known_analyst(self, key):
         assert server.AnalyzeRequest(ticker="NVDA", trade_date="2026-09-01",
                                      analysts=[key]).analysts == [key]
+
+    def test_rejects_sentiment_which_is_a_node_name_not_a_key(self):
+        """The error the web UI hit: the graph wanted "social" and was handed
+        "sentiment", which is the node's name in the compiled graph."""
+        with pytest.raises(ValidationError) as caught:
+            server.AnalyzeRequest(ticker="NVDA", trade_date="2026-09-01",
+                                  analysts=["sentiment"])
+        assert "social" in str(caught.value), \
+            "the rejection should name what the graph does accept"
 
 
 class TestRunRegistry:
@@ -335,6 +354,58 @@ class TestCancel:
             assert server._acquire_graph_slot(run) is False
         finally:
             server._GRAPH_LOCK.release()
+
+
+class TestAnalystKeysMatchTheGraph:
+    """The web UI and the graph must speak the same analyst vocabulary.
+
+    The Sentiment Analyst's graph key is "social", not "sentiment" — the
+    latter is its node name. An earlier version of the UI offered "sentiment",
+    validated it against a copy of that same wrong list, and then died in
+    setup_graph on every run that had the box ticked.
+    """
+
+    def _graph_keys(self) -> set[str]:
+        from quantagent.graph.analyst_execution import ANALYST_NODE_SPECS
+        return set(ANALYST_NODE_SPECS)
+
+    def test_the_ui_roster_uses_graph_keys(self):
+        analyst_team = next(t for t in TEAMS if t["key"] == "analysts")
+        roster_keys = {a["key"] for a in analyst_team["agents"]}
+        assert roster_keys == self._graph_keys(), (
+            f"roster {sorted(roster_keys)} != graph {sorted(self._graph_keys())}"
+        )
+
+    def test_the_request_default_is_a_valid_selection(self):
+        req = server.AnalyzeRequest(ticker="NVDA", trade_date="2026-09-01")
+        assert set(req.analysts) <= self._graph_keys()
+
+    def test_the_validator_reads_the_graph_registry(self):
+        assert server._known_analyst_keys() == self._graph_keys()
+
+    def test_the_html_checkboxes_use_graph_keys(self):
+        """The value attributes are what the browser POSTs."""
+        html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+        values = set(re.findall(r'<input type="checkbox" value="([^"]+)"', html))
+        assert values == self._graph_keys(), (
+            f"HTML offers {sorted(values)}, graph accepts {sorted(self._graph_keys())}"
+        )
+
+    def test_the_report_tabs_cover_every_analyst_report_field(self):
+        """A report field with no tab would be fetched and never shown."""
+        from quantagent.graph.analyst_execution import ANALYST_NODE_SPECS
+
+        for spec in ANALYST_NODE_SPECS.values():
+            if spec.report_key:
+                assert spec.report_key in REPORT_KEYS, spec.report_key
+
+    def test_the_planner_accepts_the_default_selection(self):
+        """End to end: what the browser sends must build a plan."""
+        from quantagent.graph.analyst_execution import build_analyst_execution_plan
+
+        req = server.AnalyzeRequest(ticker="NVDA", trade_date="2026-09-01")
+        plan = build_analyst_execution_plan(req.analysts)
+        assert len(plan.specs) == len(req.analysts)
 
 
 class TestSseFrames:
