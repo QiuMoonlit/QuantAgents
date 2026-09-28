@@ -47,6 +47,10 @@ web = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
 ]
+# A-share / Hong Kong market data via AkShare.
+cn = [
+    "akshare>=1.16.0",
+]
 
 [project.scripts]
 quantagent = "cli.main:app"

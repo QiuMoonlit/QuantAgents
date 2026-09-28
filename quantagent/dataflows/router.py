@@ -6,6 +6,10 @@ from quantagent.dataflows.errors import (
     VendorNotConfiguredError,
     VendorRateLimitError,
 )
+from quantagent.dataflows.vendors.akshare.market import (
+    get_cn_stock_data,
+    get_cn_stock_stats_window,
+)
 from quantagent.dataflows.vendors.alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
     get_cashflow as get_alpha_vantage_cashflow,
@@ -88,6 +92,7 @@ TOOLS_CATEGORIES = {
 
 VENDOR_LIST = [
     "yfinance",
+    "akshare",
     "sec_edgar",
     "fred",
     "polymarket",
@@ -106,11 +111,16 @@ VENDOR_METHODS = {
     # core_stock_apis
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
+        # akshare raises ValueError for a non-Chinese ticker, which the router
+        # treats as a fall-through: a US run never reaches it, and a Chinese
+        # run never reaches yfinance.
+        "akshare": get_cn_stock_data,
         "yfinance": get_YFin_data_online,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
+        "akshare": get_cn_stock_stats_window,
         "yfinance": get_stock_stats_indicators_window,
     },
     # fundamental_data
