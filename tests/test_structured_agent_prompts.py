@@ -20,6 +20,7 @@ from quantagent.agents.managers.portfolio_manager import create_portfolio_manage
 from quantagent.agents.managers.research_manager import create_research_manager
 from quantagent.agents.structured import NO_EXTERNAL_TOOLS
 from quantagent.agents.trader.trader import create_trader
+from quantagent.dataflows.vendors import us_sentiment
 
 
 def _capturing_llm(captured: dict, result):
@@ -111,8 +112,10 @@ def test_sentiment_prompt_states_constraint(monkeypatch):
     from quantagent.agents.schemas import SentimentBand, SentimentReport
 
     # Pre-fetched sources are stubbed so the prompt builds without network I/O.
-    monkeypatch.setattr(sentiment, "fetch_stocktwits_messages", lambda *a, **k: "st")
-    monkeypatch.setattr(sentiment, "fetch_reddit_posts", lambda *a, **k: "rd")
+    monkeypatch.setattr(
+            us_sentiment, "fetch_stocktwits_messages", lambda *a, **k: "st")
+    monkeypatch.setattr(
+            us_sentiment, "fetch_reddit_posts", lambda *a, **k: "rd")
     monkeypatch.setattr(sentiment.get_news, "func", lambda *a, **k: "news", raising=False)
 
     captured = {}

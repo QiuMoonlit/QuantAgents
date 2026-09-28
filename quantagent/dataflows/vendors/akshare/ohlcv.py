@@ -171,6 +171,21 @@ def normalize_ohlcv(data: pd.DataFrame, symbol: CnSymbol) -> pd.DataFrame:
     return frame
 
 
+def is_chinese_symbol(symbol: str) -> bool:
+    """Whether ``symbol`` names a Mainland or Hong Kong instrument.
+
+    Used where the choice of source must be made before any data is fetched —
+    the Sentiment Analyst, for instance, which otherwise would ask
+    r/wallstreetbets about a 600519. Accepts a bare code as well as a suffixed
+    one, because users type both.
+    """
+    try:
+        resolve_cn_symbol(symbol)
+        return True
+    except ValueError:
+        return False
+
+
 def resolve_cn_symbol_or_skip(symbol: str) -> CnSymbol:
     """:func:`resolve_cn_symbol`, but raising the type the router falls through on.
 

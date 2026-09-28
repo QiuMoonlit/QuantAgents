@@ -18,6 +18,11 @@ from quantagent.dataflows.vendors.akshare.market import (
     get_cn_stock_stats_window,
     get_cn_verified_market_snapshot,
 )
+from quantagent.dataflows.vendors.akshare.news import (
+    get_cn_global_news,
+    get_cn_news,
+)
+from quantagent.dataflows.vendors.akshare.sentiment import get_cn_sentiment
 from quantagent.dataflows.vendors.alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
     get_cashflow as get_alpha_vantage_cashflow,
@@ -38,6 +43,7 @@ from quantagent.dataflows.vendors.sec_edgar import (
     get_cashflow as get_sec_edgar_cashflow,
     get_income_statement as get_sec_edgar_income_statement,
 )
+from quantagent.dataflows.vendors.us_sentiment import get_us_sentiment
 from quantagent.dataflows.vendors.yahoo.fundamentals import (
     get_balance_sheet as get_yfinance_balance_sheet,
     get_cashflow as get_yfinance_cashflow,
@@ -97,6 +103,13 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_prediction_markets",
         ]
+    },
+    # Not an agent tool: the Sentiment Analyst picks its source through
+    # get_sentiment rather than asking for StockTwits and Reddit directly, so
+    # the platform is a configuration decision instead of a hardcoded import.
+    "sentiment_data": {
+        "description": "Retail sentiment and social chatter",
+        "tools": []
     }
 }
 
@@ -160,10 +173,12 @@ VENDOR_METHODS = {
     # news_data
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
+        "akshare": get_cn_news,
         "yfinance": get_news_yfinance,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
+        "akshare": get_cn_global_news,
         "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
@@ -193,6 +208,13 @@ VENDOR_METHODS = {
         "akshare": get_cn_verified_market_snapshot,
         "yfinance": build_verified_market_snapshot,
     },
+    # The Sentiment Analyst's social block. Chinese markets get Eastmoney's
+    # 股吧 — the institutional equivalent of the StockTwits/Reddit pair — rather
+    # than two English-language platforms that carry nothing about a 600519.
+    "get_sentiment": {
+        "akshare": get_cn_sentiment,
+        "yfinance": get_us_sentiment,
+    },
 }
 
 
@@ -208,6 +230,8 @@ NON_TOOL_METHOD_CATEGORIES = {
     # stock it does not carry and the tool raised through LangGraph's default
     # error handler, ending the run.
     "get_verified_market_snapshot": "core_stock_apis",
+    # The Sentiment Analyst's social block.
+    "get_sentiment": "sentiment_data",
 }
 
 

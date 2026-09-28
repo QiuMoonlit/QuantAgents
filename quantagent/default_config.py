@@ -192,11 +192,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "core_stock_apis": "akshare,yfinance",       # Options: akshare, alpha_vantage, yfinance
         "technical_indicators": "akshare,yfinance",  # Options: akshare, alpha_vantage, yfinance
         "fundamental_data": "akshare,yfinance",      # Options: akshare, alpha_vantage, yfinance
-        # News and sentiment are not yet wired for Chinese markets; see the
-        # coverage table in the README.
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "news_data": "akshare,yfinance",     # Options: akshare, alpha_vantage, yfinance
         "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
         "prediction_markets": "polymarket",  # Options: polymarket (keyless)
+        # The Sentiment Analyst's platform. akshare serves 东方财富股吧 for a
+        # Chinese ticker and declines a US one before any network call, so
+        # listing it first serves both markets from one setting.
+        "sentiment_data": "akshare,yfinance",  # Options: akshare, yfinance
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {

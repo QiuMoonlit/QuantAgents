@@ -29,6 +29,7 @@ from quantagent.agents.schemas import (
     render_trader_proposal,
 )
 from quantagent.agents.trader.trader import create_trader
+from quantagent.dataflows.vendors import us_sentiment
 
 # ---------------------------------------------------------------------------
 # Render functions
@@ -444,8 +445,10 @@ class TestSentimentAnalystAgent:
         """
         from quantagent.agents.analysts import sentiment_analyst as sentiment
 
-        monkeypatch.setattr(sentiment, "fetch_stocktwits_messages", lambda *a, **k: "st")
-        monkeypatch.setattr(sentiment, "fetch_reddit_posts", lambda *a, **k: "rd")
+        monkeypatch.setattr(
+            us_sentiment, "fetch_stocktwits_messages", lambda *a, **k: "st")
+        monkeypatch.setattr(
+            us_sentiment, "fetch_reddit_posts", lambda *a, **k: "rd")
         monkeypatch.setattr(sentiment.get_news, "func", lambda *a, **k: "news", raising=False)
 
     def test_structured_path_produces_rendered_markdown(self):

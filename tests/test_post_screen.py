@@ -4,6 +4,7 @@ import pytest
 import requests
 
 from quantagent.agents import post_screen as typesafe
+from quantagent.dataflows.vendors import us_sentiment
 
 QUESTIONS = {"is_urgent": {"type": "noul", "instructions": "Does this convey urgency?"}}
 ANSWERS = {"is_urgent": {"type": "noul", "noul": 0.95}}
@@ -245,10 +246,14 @@ def test_the_sentiment_analyst_hands_the_screen_to_both_social_fetchers(monkeypa
 
     screen = object()
     seen = []
-    monkeypatch.setattr(sentiment_analyst, "jev_screen", lambda ticker: screen)
+    # jev_screen is imported inside get_us_sentiment (the router imports that
+    # module, and quantagent.agents imports the router back), so the patch goes
+    # on post_screen itself rather than on us_sentiment.
+    monkeypatch.setattr(typesafe, "jev_screen", lambda ticker: screen)
     monkeypatch.setattr(sentiment_analyst.get_news, "func", lambda *a: "news")
     for name in ("fetch_stocktwits_messages", "fetch_reddit_posts"):
-        monkeypatch.setattr(sentiment_analyst, name, lambda *a, screen=None, **k: seen.append(screen) or "")
+        monkeypatch.setattr(us_sentiment, name,
+                            lambda *a, screen=None, **k: seen.append(screen) or "")
 
     class _LLM:
         def with_structured_output(self, *a, **k):

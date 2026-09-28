@@ -1,16 +1,21 @@
-"""Sentiment analyst: one sentiment report from three sources.
+"""Sentiment analyst: one sentiment report from news plus retail chatter.
 
 The node fetches its sources before calling the model and puts them in the
 prompt, so the model reports on data it was given rather than inventing posts:
 
-  1. News headlines: Yahoo Finance
-  2. StockTwits messages: the cashtag stream, with Bullish/Bearish tags
-  3. Reddit posts: r/wallstreetbets, r/stocks, r/investing
+  1. News headlines, market-specific
+  2. Retail chatter, market-specific:
+     - US: StockTwits (self-labelled Bullish/Bearish) and Reddit
+       (r/wallstreetbets, r/stocks, r/investing)
+     - China: 东方财富股吧 — the attention index, the retail scorecard and the
+       popularity ranking. There is no per-stock Xueqiu message stream, so this
+       is the honest Chinese equivalent of the two Western feeds.
 
-Each source is trimmed to the analysis window. With a TypeSafe key, the social
-posts are screened by Jev first (see post_screen). These feeds serve recent items
-and are not archived, so a historical run's sentiment inputs are not
-point-in-time.
+The source pair is chosen by the configured ``sentiment_data`` chain rather
+than by a hardcoded import, because a 600519 asked about r/wallstreetbets gets
+nothing. Each source is trimmed to the analysis window where the vendor
+archives it. These feeds serve recent items and are not archived, so a
+historical run's sentiment inputs are not point-in-time.
 
 The report is a SentimentReport through structured output where the provider
 supports it and free text otherwise, so the band, score and confidence header
@@ -23,7 +28,6 @@ from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from quantagent.agents.context import get_instrument_context_from_state, get_language_instruction
-from quantagent.agents.post_screen import jev_screen
 from quantagent.agents.schemas import SentimentReport, render_sentiment_report
 from quantagent.agents.structured import (
     NO_EXTERNAL_TOOLS,
@@ -31,8 +35,8 @@ from quantagent.agents.structured import (
     invoke_structured_or_freetext,
 )
 from quantagent.agents.tools import get_news
-from quantagent.dataflows.vendors.reddit import fetch_reddit_posts
-from quantagent.dataflows.vendors.stocktwits import fetch_stocktwits_messages
+from quantagent.dataflows.router import route_to_vendor
+from quantagent.dataflows.vendors.akshare.ohlcv import is_chinese_symbol
 
 
 def _seven_days_back(trade_date: str) -> str:
@@ -55,25 +59,23 @@ def create_sentiment_analyst(llm):
         start_date = _seven_days_back(end_date)
         instrument_context = get_instrument_context_from_state(state)
 
-        # Pre-fetch all three sources. Each fetcher degrades gracefully and
-        # returns a string (no exceptions surface from here), so the LLM
-        # always sees something — either real data or a clear placeholder.
+        # Pre-fetch both source groups. Each degrades to a string (no exception
+        # surfaces), so the LLM always sees something — real data or a clear
+        # placeholder.
         news_block = get_news.func(ticker, start_date, end_date)
-        # Pass the analysis window so a historical run trims social posts to it
-        # instead of leaking today's chatter into a backtest (#1220).
-        screen = jev_screen(ticker)
-        stocktwits_block = fetch_stocktwits_messages(
-            ticker, limit=30, start_date=start_date, end_date=end_date, screen=screen
-        )
-        reddit_block = fetch_reddit_posts(ticker, start_date=start_date, end_date=end_date, screen=screen)
+        # Routed, so a Chinese ticker reads the 东方财富股吧 feeds instead
+        # of two English-language platforms that carry nothing about it. The
+        # analysis window is passed so a historical run trims to it where the
+        # vendor archives (#1220).
+        social_block = route_to_vendor("get_sentiment", ticker, start_date, end_date)
 
         system_message = _build_system_message(
             ticker=ticker,
             start_date=start_date,
             end_date=end_date,
+            chinese=is_chinese_symbol(ticker),
             news_block=news_block,
-            stocktwits_block=stocktwits_block,
-            reddit_block=reddit_block,
+            social_block=social_block,
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -123,53 +125,77 @@ def _build_system_message(
     ticker: str,
     start_date: str,
     end_date: str,
+    chinese: bool,
     news_block: str,
-    stocktwits_block: str,
-    reddit_block: str,
+    social_block: str,
 ) -> str:
-    """Assemble the sentiment-analyst system message with structured data blocks."""
-    return f"""You are a financial market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on three complementary data sources that have already been collected for you.
+    """Assemble the sentiment-analyst system message with structured data blocks.
+
+    The source block differs by market because the platforms differ: there is no
+    per-stock Xueqiu message stream, and a 600519 has nothing on StockTwits. The
+    *method* is the same either way - read what the source can and cannot tell
+    you - so the analysis guidance is shared and only the source description and
+    the source-specific reading notes change.
+    """
+    if chinese:
+        source_section = f"""### 东方财富股吧 — 中国零售情绪
+三个指标，三者各测一件事：**关注度**（谈多少）、**情绪评分**（怎么看）、**人气排名**（在群里多稍）。
+
+<start_of_social>
+{social_block}
+<end_of_social>
+
+这些是**指标**而不是帖子本身。它们反映零售群体的行为，但不包含每个人自选的 Bullish/Bearish 标签——因此读时不要当作为立场方向，而要当作**热度和持仓意志**。"""
+        news_source = "东方财富（Eastmoney）个股新闻，过去 7 天"
+        reading_notes = """1. **先分清“关注”和“买入”。** 关注指数上升而价格持平，说明是在看不是在买。换手还需要股票换手率、主力成本与现价的偏离同时看。
+
+2. **读人气排名的方向，不是绝对值。** 排名从 5 升到 20 是零售在回流，从 1 并到 5 是其他标的更强话题挤占了空间。绝对位置的变化比位置更有意义。
+
+3. **区分新丰和铁杆。** 新丰追、铁杆持。**新丰占比突然上升而价格无反应，是零售流入信号，不是持仓信心**。卖方供应出现而价格不动，通常意味着接盘仓库在出。
+
+4. **主力成本是成本的不安，不是目标价。** 现价高于主力成本，平均持仓者盈利；低于则平均持仓者消费，下行中结构性风险变大。**它不是目标价，不要当作价格目标写进报告。**
+
+5. **机构参与度是结构性信息。** 零售情绪极热但机构参与度下行，说明流动性资金主导；情绪冷漂但机构参与度上升，可能是公募资金吸引。"""
+    else:
+        source_section = f"""### StockTwits and Reddit — US retail-chatter platforms
+StockTwits messages carry a user-labeled sentiment tag (Bullish / Bearish / no-label) plus the message body. Reddit posts come from r/wallstreetbets, r/stocks and r/investing, without vote or comment counts.
+
+<start_of_social>
+{social_block}
+<end_of_social>"""
+        news_source = "Yahoo Finance, past 7 days"
+        reading_notes = """1. **读 StockTwits 的 Bullish/Bearish 比作为零售预期信号。** 70/30 中性看多；≥90/10 可能是过热并有反向风险；50/50 是不确定。样本量很重要，以实际条数为准。标有“Screened by Jev”的区块已去掉偏题帖子；其立场计数是分类器对所有在题帖的读取，列出的仅是样本。
+
+2. **不要从 Reddit 推断互动量。** 该流没有投票数和评论数，只能从正文摘要判断质量。
+
+3. **区分偶见与事件。** 新闻标题是事件，一条 StockTwits 帖子是意见。两者都是输入，但权重不应相同。"""
+
+    return f"""You are a financial market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on complementary data sources that have already been collected for you.
 
 ## Data sources (pre-fetched, in this prompt)
 
-### News headlines — Yahoo Finance, past 7 days
+### News headlines — {news_source}
 Institutional framing. Fact-driven, slower-moving signal.
 
 <start_of_news>
 {news_block}
 <end_of_news>
 
-### StockTwits messages — retail-trader social platform indexed by cashtag
-Fast-moving signal. Each message carries a user-labeled sentiment tag (Bullish / Bearish / no-label) plus the message body.
-
-<start_of_stocktwits>
-{stocktwits_block}
-<end_of_stocktwits>
-
-### Reddit posts — r/wallstreetbets, r/stocks, r/investing (past 7 days)
-Community discussion, without vote or comment counts. Subreddit character matters (r/wallstreetbets is often contrarian/exuberant; r/stocks more measured; r/investing longer-term).
-
-<start_of_reddit>
-{reddit_block}
-<end_of_reddit>
+{source_section}
 
 ## How to analyze this data (best practices)
 
-1. **Read the StockTwits Bullish/Bearish ratio as a leading retail-sentiment signal.** A 70/30 bullish/bearish split is moderately bullish; ≥90/10 may indicate over-extension and contrarian risk; 50/50 is uncertainty. Sample size matters — base rates on the actual message count, not percentages alone. A block headed "Screened by Jev" has had off-topic posts removed; its stance count is a classifier's read of every on-topic post fetched, labelled or not, of which the posts listed are a sample. Read it alongside the user tags.
+{reading_notes}
 
-2. **Look for cross-source divergences.** If news framing is bearish but StockTwits is overwhelmingly bullish, that mismatch is itself a signal — it can mean retail is leaning into a thesis the news flow hasn't caught up to (or vice versa, that retail is chasing while institutions are cautious).
+6. **寻找跨源分歧。** 如果新闻口径偏稀中而零售情绪极热（或反之），这个不一致本身就是信号——它可能表明零售在追一个机构尚未体现的主张，也可能表明机构比零售更慎慎。
 
-3. **Read Reddit posts for substance.** The feed carries no vote or comment counts, so judge a post by its body excerpt, not its title alone, and do not infer engagement.
+7. **找出反复出现的叙事主线。** 哪个话题跨来源反复出现？那就是驱动当前情绪的主导叙事。
 
-4. **Distinguish opinion from event.** A news headline ("Nvidia announces $500M Corning deal") is an event; a StockTwits post ("buying NVDA, this is going to moon") is opinion. Both are inputs but should be weighted differently in your conclusions.
+8. **对数据限制诚实。** 如果某个源只返回了少量内容，或出现了不可用占位符，情绪判断就不多孔富——请在 `confidence` 字段和正文里明确标出。
 
-5. **Identify recurring narrative themes.** What topic keeps coming up across sources? That's the dominant narrative driving current sentiment.
+9. **识别交叉的催化剂与风险。** 优势、产品发布、竞争压力、宏观头条等。
 
-6. **Be honest about data limits.** If StockTwits returned only a handful of messages, or one or more sources returned an "<unavailable>" placeholder, the sentiment read is less robust — flag this explicitly in the `confidence` field and the narrative. If the sources are silent on a given subreddit, say so.
-
-7. **Identify catalysts and risks** that emerge across sources — news of upcoming earnings, product launches, competitive threats, macro headlines, etc.
-
-8. **Past sentiment is not predictive.** Frame your conclusions as signal for the trader to weigh alongside fundamentals and technicals, not as a price call.
+10. **过去的情绪不具预测性。** 把结论表述为交给交易者与基本面、技术面共同权衡的信号，而不是价格预测。
 
 ## Output fields
 
@@ -181,3 +207,4 @@ Fill the following fields:
 - **narrative**: Full source-by-source breakdown, divergences, dominant narrative themes, catalysts and risks, and a markdown summary table of key sentiment signals (direction, source, supporting evidence).
 
 {get_language_instruction()}"""
+

@@ -17,8 +17,8 @@ from langchain_core.runnables import RunnableLambda
 from pydantic import Field
 
 from quantagent.agents import context, schemas
-from quantagent.agents.analysts import sentiment_analyst
 from quantagent.dataflows import router
+from quantagent.dataflows.vendors import us_sentiment
 from quantagent.dataflows.vendors.yahoo import market as yahoo_market
 from quantagent.default_config import DEFAULT_CONFIG
 from quantagent.graph import trading_graph
@@ -97,8 +97,10 @@ def offline(monkeypatch, tmp_path):
         for vendor in vendors:
             monkeypatch.setitem(vendors, vendor,
                                 lambda *a, _m=method, **k: called.add(_m) or f"{_m} data")
-    monkeypatch.setattr(sentiment_analyst, "fetch_stocktwits_messages", lambda *a, **k: "no posts")
-    monkeypatch.setattr(sentiment_analyst, "fetch_reddit_posts", lambda *a, **k: "no posts")
+    monkeypatch.setattr(
+            us_sentiment, "fetch_stocktwits_messages", lambda *a, **k: "no posts")
+    monkeypatch.setattr(
+            us_sentiment, "fetch_reddit_posts", lambda *a, **k: "no posts")
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: type("T", (), {"info": {"longName": "NVIDIA"}})())
     context.resolve_instrument_identity.cache_clear()
     return called
@@ -124,13 +126,15 @@ def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, st
                 "investment_plan", "trader_investment_plan", "final_trade_decision"):
         assert state[key].strip(), key
     # Every router method a full run reaches. Not all are agent tools:
-    # get_verified_market_snapshot is one that now goes through the registry.
-    # The Yahoo snapshot's load_ohlcv is no longer patched — that call is
-    # behind the router like everything else, so the stub above covers it.
+    # get_verified_market_snapshot is one, and get_sentiment is the Sentiment
+    # Analyst's source pair, which now goes through the registry too. The Yahoo
+    # snapshot's load_ohlcv is no longer patched — that call is behind the router
+    # like everything else, so the stub above covers it.
     reached = {"get_stock_data", "get_indicators", "get_news", "get_global_news",
                "get_macro_indicators", "get_prediction_markets", "get_fundamentals",
                "get_balance_sheet", "get_cashflow", "get_income_statement",
-               "get_insider_transactions", "get_verified_market_snapshot"}
+               "get_insider_transactions", "get_verified_market_snapshot",
+               "get_sentiment"}
     assert offline == reached
     assert [e["rating"] for e in graph.memory_log.load_entries()] == ["Overweight"]
 

@@ -346,29 +346,52 @@ the backtest harness — is upstream TradingAgents v0.5.1 as shipped.
 
 `pip install -e ".[cn]"` and point the relevant categories at `akshare`:
 
-```python
+```powershell
 config["data_vendors"]["core_stock_apis"] = "akshare,yfinance"
 config["data_vendors"]["technical_indicators"] = "akshare,yfinance"
 config["data_vendors"]["fundamental_data"] = "akshare,yfinance"
+config["data_vendors"]["news_data"] = "akshare,yfinance"
+config["data_vendors"]["sentiment_data"] = "akshare,yfinance"
 ```
 
 Wired: daily OHLCV, stockstats indicators, balance sheet / income statement /
-cash flow under 中国企业会计准则, headline metrics, and the settlement price
-series. Tickers use the normal spellings — `600519.SS`, `000001.SZ`, `0700.HK`.
-A US ticker falls out of the AkShare vendor with `NoMarketDataError` and
-continues down the chain, so the two can be listed in one config.
+cash flow under 中国企业会计准则, headline metrics, the settlement price
+series, per-stock news, retail sentiment from 东方财富股吧, and the market
+analyst's verified price snapshot. Tickers use the normal spellings —
+`600519.SS`, `000001.SZ`, `0700.HK`. A US ticker falls out of the AkShare
+vendor with `NoMarketDataError` and continues down the chain, so the two can be
+listed in one config, which is the default.
 
 **Not wired yet** — these still resolve to the US vendors, and an A-share run
 will degrade rather than fail:
 
 | Gap | Effect on a Chinese ticker |
 |---|---|
-| News | `stock_news_em` exists in AkShare and is not yet registered. News comes from yfinance, which returns little or nothing for `600519.SS` — the News Analyst will have almost nothing to work with. This is the largest remaining gap. |
-| Sentiment | The Sentiment Analyst imports StockTwits and Reddit directly. Both are meaningless for an A-share, so it reads empty. |
 | Insider transactions | Form 4 has no A-share equivalent; 董监高持股变动 is a different disclosure with a different cadence. Not implemented. |
-| Macro | FRED is US-only. Chinese macro (PMI, 社融, LPR) is not wired. |
-| Hong Kong statements | Price and indicators work for `.HK`; fundamentals are not served by the underlying vendor and say so. |
+| Macro indicators | The News Analyst's macro tool is FRED, which is US-only. Chinese macro (PMI, 社融, LPR) is not wired. Global *news* now falls back to a Baidu economic digest. |
+| Hong Kong statements | Price, indicators, news and sentiment work for `.HK`; fundamentals are not served by the underlying vendor and say so. |
 | Trading calendar | `MAX_OHLCV_STALE_DAYS` was raised to 20 so Chinese holidays do not read as stale, but there is still no real exchange calendar — `date_window.py` is plain calendar arithmetic and `settlement.py`'s holding-window estimate is tuned for Western holidays. |
+
+### Sentiment, for what it is
+
+The Chinese source is 东方财富股吧 (Eastmoney's per-stock forum), which is the
+institutional equivalent of the StockTwits/Reddit pair. It is **not** a message
+stream — there are no per-stock posts to read — so what it offers is a set of
+indices:
+
+| Signal | What it means |
+|---|---|
+| 用户关注指数 (attention index) | How much the retail forum is following, 30 trading days. Attention, not direction. |
+| 综合得分 / 机构参与度 / 主力成本 | A per-stock scorecard. 主力成本 is the crowd's cost basis, which is **not** a price target — the output says so, because it reads like one. |
+| 人气排名 + 新晋粉丝/铁杆粉丝 | The popularity ranking over time, split into fans who chase and fans who hold. A rise in 新晋粉丝 with no price response is retail flow, not conviction. |
+
+雪球 (Xueqiu) is deliberately not used: AkShare's Xueqiu endpoints are
+hot-topic and holdings screens, not a per-stock message stream —
+`stock_hot_tweet_xq(symbol="SH600519")` raises `KeyError` because it only
+serves a global trending list. Claiming a Xueqiu feed would be fiction.
+
+A partial outage keeps what worked and lists what did not; a total one raises
+rather than handing the analyst an empty block.
 
 ### Two things that look like gaps and are not
 
