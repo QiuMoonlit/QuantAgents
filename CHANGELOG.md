@@ -16,10 +16,10 @@ fixes to run isolation, SEC EDGAR statements and historical runs.
 
 Some modules moved, and the old import paths are gone. Update imports as follows:
 
-- `tradingagents.dataflows.interface` is `tradingagents.dataflows.router`, and `dataflows.symbol_utils` is `dataflows.symbols`. `dataflows.utils` is gone: `get_current_date` is in `dataflows.date_window`, `safe_ticker_component` in `dataflows.symbols`.
-- Vendor modules live under `tradingagents.dataflows.vendors`: `yahoo` (`ohlcv`, `market`, `fundamentals`, `news`, `snapshot`, from the former `stockstats_utils`, `y_finance`, `yfinance_news` and `market_data_validator`), `alpha_vantage` (a package, from the `alpha_vantage_*` modules), and `sec_edgar`, `fred`, `polymarket`, `reddit`, `stocktwits`.
-- `tradingagents.agents.utils` is gone: the agent tools are in `agents.tools`, and `agent_utils`, `agent_states`, `rating` and `structured` are `agents.context`, `agents.state`, `agents.rating` and `agents.structured`.
-- The decision log is `tradingagents.decision_log` (was `agents.utils.memory`), and `cli.utils` is `cli.prompts`.
+- `quantagent.dataflows.interface` is `quantagent.dataflows.router`, and `dataflows.symbol_utils` is `dataflows.symbols`. `dataflows.utils` is gone: `get_current_date` is in `dataflows.date_window`, `safe_ticker_component` in `dataflows.symbols`.
+- Vendor modules live under `quantagent.dataflows.vendors`: `yahoo` (`ohlcv`, `market`, `fundamentals`, `news`, `snapshot`, from the former `stockstats_utils`, `y_finance`, `yfinance_news` and `market_data_validator`), `alpha_vantage` (a package, from the `alpha_vantage_*` modules), and `sec_edgar`, `fred`, `polymarket`, `reddit`, `stocktwits`.
+- `quantagent.agents.utils` is gone: the agent tools are in `agents.tools`, and `agent_utils`, `agent_states`, `rating` and `structured` are `agents.context`, `agents.state`, `agents.rating` and `agents.structured`.
+- The decision log is `quantagent.decision_log` (was `agents.utils.memory`), and `cli.utils` is `cli.prompts`.
 - `backtest.summarize` takes a `run_backtest` result or the path of a decision log, in place of a `TradingMemoryLog`.
 - Removed: `SignalProcessor` (the rating is parsed by `process_signal`), the `create_social_media_analyst` alias (use `create_sentiment_analyst`), the unused `project_dir` config key, and the graph attributes `curr_state`, `ticker` and `log_states_dict`, which held the previous run's state.
 
@@ -61,7 +61,7 @@ portfolio as run input, and SEC EDGAR fundamentals served as filed.
 ### Highlights
 
 - **Fundamentals as filed.** SEC EDGAR serves US company statements as they stood on the run's date: a period that has ended but has not been filed is not served, and a figure restated later still reads as first reported. Keyless, opt-in via the vendor chain.
-- **Backtesting.** `run_backtest` runs the pipeline over a ticker and date grid into its own decision log, and `summarize` scores the settled cells; `tradingagents backtest` does the same from the CLI.
+- **Backtesting.** `run_backtest` runs the pipeline over a ticker and date grid into its own decision log, and `summarize` scores the settled cells; `quantagent backtest` does the same from the CLI.
 - **Portfolio context.** `propagate(..., portfolio=...)` and `--portfolio` let the trader, risk and portfolio agents size against real holdings. A run without one is never treated as a flat book.
 - **Decisions are recorded as made.** An unreadable decision is flagged for review everywhere instead of becoming a tradeable Hold, and a rating argued against is no longer read as the call.
 
@@ -88,7 +88,7 @@ portfolio as run input, and SEC EDGAR fundamentals served as filed.
 
 ### CLI
 
-- `tradingagents backtest`, with `--run-id` to continue an interrupted sweep. (#1234)
+- `quantagent backtest`, with `--run-id` to continue an interrupted sweep. (#1234)
 - The previous run's selections come back as prompt defaults. (#1236, #920)
 - A run with no readable rating says so; the live view no longer scrolls; messages that read like Python values are shown. (#649, #784)
 - The state log keeps non-ASCII readable. (#1081)
@@ -335,7 +335,7 @@ Thanks to everyone who shaped this release through code, design, and reports:
 - **Ticker prompt preserves exchange suffixes** (`.SH`, `.SZ`, `.SS`, `.HK`,
   `.T`, etc.) for A-share, HK, Tokyo, and other non-US flows. (#770)
 - **Docker permission errors** no longer block first-run write to
-  `~/.tradingagents/`. (#519, #627, #672, #771)
+  `~/.quantagent/`. (#519, #627, #672, #771)
 - **Config state no longer leaks between runs** when sub-dicts are mutated;
   `set_config` partial updates preserve sibling defaults. (#788)
 - **`max_recur_limit` config actually applies** — previously read but not
@@ -365,7 +365,7 @@ Thanks to everyone who shaped this release through code, design, and reports:
 - **LangGraph checkpoint resume** — opt-in via `--checkpoint`. State is saved
   after each node so crashed or interrupted runs resume from the last
   successful step. Per-ticker SQLite databases under
-  `~/.tradingagents/cache/checkpoints/`. `--clear-checkpoints` resets them. (#594)
+  `~/.quantagent/cache/checkpoints/`. `--clear-checkpoints` resets them. (#594)
 - **Persistent decision log** replacing the per-agent BM25 memory. Decisions
   are stored automatically at the end of `propagate()`; the next same-ticker
   run resolves prior pending entries with realised return, alpha vs SPY, and
@@ -394,7 +394,7 @@ Thanks to everyone who shaped this release through code, design, and reports:
   overriding `backend_url`. The CLI flow is unaffected.
 - All file I/O passes explicit `encoding="utf-8"` so Windows users no longer
   hit `UnicodeEncodeError` with the cp1252 default. (#543, #550, #576)
-- Cache and log directories moved to `~/.tradingagents/` to resolve Docker
+- Cache and log directories moved to `~/.quantagent/` to resolve Docker
   permission issues. (#519)
 - `SignalProcessor` reads the rating from the Portfolio Manager's rendered
   markdown via a deterministic heuristic — no extra LLM call.

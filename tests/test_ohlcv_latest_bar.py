@@ -18,8 +18,8 @@ import os
 import pandas as pd
 import pytest
 
-from tradingagents.dataflows.errors import NoMarketDataError
-from tradingagents.dataflows.vendors.yahoo import ohlcv
+from quantagent.dataflows.errors import NoMarketDataError
+from quantagent.dataflows.vendors.yahoo import ohlcv
 
 
 def _stamp(path, ts):
@@ -182,7 +182,7 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
     """Gap filling exists so indicators compute on a continuous series. The
     verification snapshot is the one place a number must be what the vendor
     reported, or the module built to stop invented prices supplies them."""
-    from tradingagents.dataflows.vendors.yahoo import ohlcv, snapshot
+    from quantagent.dataflows.vendors.yahoo import ohlcv, snapshot
 
     frame = pd.DataFrame({
         "Date": ["2026-05-06", "2026-05-07", "2026-05-08"],

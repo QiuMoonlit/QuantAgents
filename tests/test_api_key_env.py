@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV, get_api_key_env
+from quantagent.llm_clients.api_key_env import PROVIDER_API_KEY_ENV, get_api_key_env
 
 # ---- Mapping coverage -----------------------------------------------------
 

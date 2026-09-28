@@ -3,7 +3,7 @@
 import pytest
 import requests
 
-from tradingagents.agents import post_screen as typesafe
+from quantagent.agents import post_screen as typesafe
 
 QUESTIONS = {"is_urgent": {"type": "noul", "instructions": "Does this convey urgency?"}}
 ANSWERS = {"is_urgent": {"type": "noul", "noul": 0.95}}
@@ -241,7 +241,7 @@ def test_the_first_failure_cancels_the_requests_not_yet_sent(jev, post, monkeypa
 def test_the_sentiment_analyst_hands_the_screen_to_both_social_fetchers(monkeypatch):
     from langchain_core.messages import AIMessage
 
-    from tradingagents.agents.analysts import sentiment_analyst
+    from quantagent.agents.analysts import sentiment_analyst
 
     screen = object()
     seen = []

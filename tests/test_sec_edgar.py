@@ -13,8 +13,8 @@ from unittest import mock
 
 import pytest
 
-from tradingagents.dataflows.errors import NoMarketDataError
-from tradingagents.dataflows.vendors import sec_edgar
+from quantagent.dataflows.errors import NoMarketDataError
+from quantagent.dataflows.vendors import sec_edgar
 
 _REAL_FETCH = sec_edgar._fetch_json
 
@@ -144,7 +144,7 @@ def test_a_throttle_lets_the_next_vendor_try(monkeypatch):
     """SEC throttles by refusing the request; the router then tries yfinance."""
     import requests
 
-    from tradingagents.dataflows.errors import VendorRateLimitError
+    from quantagent.dataflows.errors import VendorRateLimitError
 
     def _throttled(*a, **k):
         raise requests.HTTPError(response=mock.Mock(status_code=429))
@@ -186,7 +186,7 @@ def test_every_row_has_one_cell_per_period():
 def test_a_server_error_lets_the_next_vendor_try(monkeypatch):
     import requests
 
-    from tradingagents.dataflows.errors import VendorError
+    from quantagent.dataflows.errors import VendorError
 
     def _server_error(*a, **k):
         raise requests.HTTPError(response=mock.Mock(status_code=503))

@@ -13,10 +13,10 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from tradingagents.agents import tools
-from tradingagents.dataflows.vendors import polymarket
-from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
-from tradingagents.dataflows.vendors.yahoo import (
+from quantagent.agents import tools
+from quantagent.dataflows.vendors import polymarket
+from quantagent.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
+from quantagent.dataflows.vendors.yahoo import (
     fundamentals as yahoo_fundamentals,
     market as yahoo_market,
 )
@@ -98,7 +98,7 @@ def test_a_historical_run_is_told_the_identity_is_current(monkeypatch):
     They are usually right for a past date, but a company that renamed or was
     reclassified since would read wrong, and every agent is told to anchor to
     this identity, so the run has to know which date it describes."""
-    from tradingagents.agents.context import build_instrument_context
+    from quantagent.agents.context import build_instrument_context
 
     identity = {"company_name": "Example Corp", "sector": "Technology",
                 "industry": "Software", "exchange": "NMS"}
@@ -110,8 +110,8 @@ def test_a_historical_run_is_told_the_identity_is_current(monkeypatch):
 
 @pytest.mark.unit
 def test_a_current_run_is_not_cluttered_with_a_vintage_note(monkeypatch):
-    from tradingagents.agents.context import build_instrument_context
-    from tradingagents.dataflows.date_window import get_current_date
+    from quantagent.agents.context import build_instrument_context
+    from quantagent.dataflows.date_window import get_current_date
 
     today = build_instrument_context("EXMP", "stock", {"company_name": "Example Corp"},
                                      curr_date=get_current_date())
@@ -145,7 +145,7 @@ def test_an_indicator_that_could_not_be_read_is_not_shown_as_a_blank_value():
     """The per-day fallback returned an empty string for a failed read, so the
     table rendered a row per day with nothing after the colon: an analyst reads
     that as "no value on that day" rather than "could not be obtained"."""
-    from tradingagents.dataflows.errors import VendorError
+    from quantagent.dataflows.errors import VendorError
 
     with mock.patch.object(yahoo_market, "get_stock_stats",
                            side_effect=RuntimeError("cache parse failed")), \
@@ -167,7 +167,7 @@ def test_a_yfinance_failure_is_a_vendor_error_not_a_report(func, args):
     """Returning the failure as text makes the router count it as an answer, so
     the chain stops and the analyst reads the error message as if it were data.
     yfinance serves the default path, so this is the one that matters most."""
-    from tradingagents.dataflows.errors import VendorError
+    from quantagent.dataflows.errors import VendorError
 
     with mock.patch.object(yahoo_market.yf, "Ticker", side_effect=RuntimeError("yahoo hiccup")), \
             pytest.raises(VendorError):
@@ -180,8 +180,8 @@ def test_a_yfinance_failure_is_a_vendor_error_not_a_report(func, args):
     ("get_global_news_yfinance", ("2026-09-01", 7, 5)),
 ])
 def test_a_yfinance_news_failure_is_a_vendor_error_not_a_report(func, args):
-    from tradingagents.dataflows.errors import VendorError
-    from tradingagents.dataflows.vendors.yahoo import news as yahoo_news
+    from quantagent.dataflows.errors import VendorError
+    from quantagent.dataflows.vendors.yahoo import news as yahoo_news
 
     target = "Ticker" if "global" not in func else "Search"
     with mock.patch.object(yahoo_news.yf, target, side_effect=RuntimeError("yahoo hiccup")), \
@@ -196,8 +196,8 @@ def test_an_unreachable_vendor_is_not_reported_as_a_missing_symbol(monkeypatch):
     company has no balance sheet, when the truth is we could not ask."""
     import pandas as pd
 
-    from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
-    from tradingagents.dataflows.vendors.yahoo import ohlcv
+    from quantagent.dataflows.errors import NoMarketDataError, VendorRateLimitError
+    from quantagent.dataflows.vendors.yahoo import ohlcv
 
     empty = mock.Mock(quarterly_balance_sheet=pd.DataFrame(), balance_sheet=pd.DataFrame())
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: empty)
@@ -215,8 +215,8 @@ def test_an_unreachable_vendor_is_not_reported_as_a_missing_symbol(monkeypatch):
 def test_every_vendor_unavailable_says_so_rather_than_crashing(monkeypatch):
     """A throttled or unreachable chain used to raise RuntimeError('No available
     vendor'), which ends the run, and never said the vendor was the problem."""
-    from tradingagents.dataflows import router
-    from tradingagents.dataflows.errors import VendorRateLimitError
+    from quantagent.dataflows import router
+    from quantagent.dataflows.errors import VendorRateLimitError
 
     def _down(*a, **k):
         raise VendorRateLimitError("Yahoo Finance is unreachable")
@@ -235,8 +235,8 @@ def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch)
     delisted symbol either."""
     import pandas as pd
 
-    from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
-    from tradingagents.dataflows.vendors.yahoo import ohlcv
+    from quantagent.dataflows.errors import NoMarketDataError, VendorRateLimitError
+    from quantagent.dataflows.vendors.yahoo import ohlcv
 
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: mock.Mock(history=lambda **k: pd.DataFrame()))
 
@@ -285,8 +285,8 @@ def _dates_after(text: str, cutoff: str) -> list[str]:
 def test_an_unavailable_notice_names_no_date_after_the_run():
     """A notice explaining why data is missing named where the vendor's coverage
     starts or today's date, both after a historical run's date."""
-    from tradingagents.agents.context import build_instrument_context
-    from tradingagents.dataflows.date_window import (
+    from quantagent.agents.context import build_instrument_context
+    from quantagent.dataflows.date_window import (
         coverage_gap,
         get_current_date,
         withhold_live_profile,

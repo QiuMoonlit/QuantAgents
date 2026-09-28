@@ -49,7 +49,7 @@ jobs:
           pip install .
           # Catches undeclared runtime deps (e.g. #994 python-dotenv): a bare
           # install must import the package and the CLI module.
-          python -c "import tradingagents, cli.main; print('clean-install import OK')"
+          python -c "import quantagent, cli.main; print('clean-install import OK')"
 
   lint:
     name: ruff (strict, full repo)

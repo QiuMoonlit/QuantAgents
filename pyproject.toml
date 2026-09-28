@@ -37,18 +37,16 @@ dev = [
     "pytest-subtests>=0.13",
 ]
 # Amazon Bedrock support (AWS SigV4 auth + boto3). Optional so the core install
-# stays lean: pip install "tradingagents[bedrock]".
+# stays lean: pip install "quantagent[bedrock]".
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
 
 [project.scripts]
 quantagent = "cli.main:app"
-# Back-compat alias so existing muscle memory and docs keep working.
-tradingagents = "cli.main:app"
 
 [tool.setuptools.packages.find]
-include = ["quantagent*", "tradingagents*", "cli*"]
+include = ["quantagent*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]

@@ -5,13 +5,13 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
-from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
-from tradingagents.decision_log import TradingMemoryLog
-from tradingagents.graph import settlement
-from tradingagents.graph.propagation import Propagator
-from tradingagents.graph.reflection import Reflector
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+from quantagent.agents.managers.portfolio_manager import create_portfolio_manager
+from quantagent.agents.schemas import PortfolioDecision, PortfolioRating
+from quantagent.decision_log import TradingMemoryLog
+from quantagent.graph import settlement
+from quantagent.graph.propagation import Propagator
+from quantagent.graph.reflection import Reflector
+from quantagent.graph.trading_graph import TradingAgentsGraph
 
 _SEP = TradingMemoryLog._SEPARATOR
 
@@ -197,7 +197,7 @@ class TestTradingMemoryLogCore:
     def test_an_unreadable_decision_is_tagged_for_review(self, tmp_path):
         """Not a Hold: a fabricated rating is quoted back to the next run as a
         call that was never made, and counted in the backtest figures."""
-        from tradingagents.agents.rating import RATING_REVIEW
+        from quantagent.agents.rating import RATING_REVIEW
 
         log = make_log(tmp_path)
         log.store_decision("MSFT", "2026-01-12", DECISION_NO_RATING)
@@ -613,7 +613,7 @@ class TestDeferredReflection:
     def test_resolve_benchmark_china_a_shares(self):
         """A-share tickers route to their exchange composite (uses the real
         default benchmark_map, since A-share support relies on it)."""
-        from tradingagents.default_config import DEFAULT_CONFIG
+        from quantagent.default_config import DEFAULT_CONFIG
         config = {"benchmark_ticker": None,
                              "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
         assert settlement.resolve_benchmark("600519.SS", config) == "000001.SS"
@@ -623,7 +623,7 @@ class TestDeferredReflection:
 
     def test_resolve_benchmark_brazil(self):
         """B3 tickers were measured against SPY."""
-        from tradingagents.default_config import DEFAULT_CONFIG
+        from quantagent.default_config import DEFAULT_CONFIG
         config = {"benchmark_ticker": None,
                              "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
         assert settlement.resolve_benchmark("PETR4.SA", config) == "^BVSP"
@@ -863,12 +863,12 @@ class TestLegacyRemoval:
 
     def test_financial_situation_memory_removed(self):
         """FinancialSituationMemory must not be importable from the memory module."""
-        import tradingagents.decision_log as m
+        import quantagent.decision_log as m
         assert not hasattr(m, "FinancialSituationMemory")
 
     def test_bm25_not_imported(self):
         """rank_bm25 must not be present in the memory module namespace."""
-        import tradingagents.decision_log as m
+        import quantagent.decision_log as m
         assert not hasattr(m, "BM25Okapi")
 
     def test_reflect_and_remember_removed(self):
@@ -934,8 +934,8 @@ class TestLegacyRemoval:
 def test_a_failed_reflection_leaves_the_entry_pending_and_lets_the_run_start(tmp_path, monkeypatch):
     """Settling past decisions happens on the way into a new run, and reflection
     calls an LLM. A transient failure there must not stop the new analysis."""
-    from tradingagents.decision_log import TradingMemoryLog
-    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from quantagent.decision_log import TradingMemoryLog
+    from quantagent.graph.trading_graph import TradingAgentsGraph
 
     graph = object.__new__(TradingAgentsGraph)
     graph.config = {"memory_log_path": str(tmp_path / "m.md")}
@@ -967,8 +967,8 @@ def test_a_failed_reflection_leaves_the_entry_pending_and_lets_the_run_start(tmp
 def test_the_holding_window_is_configurable(tmp_path, monkeypatch):
     """A decision written for months should not be graded at a week without the
     operator choosing that window."""
-    from tradingagents.decision_log import TradingMemoryLog
-    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from quantagent.decision_log import TradingMemoryLog
+    from quantagent.graph.trading_graph import TradingAgentsGraph
 
     graph = object.__new__(TradingAgentsGraph)
     graph.config = {"memory_log_path": str(tmp_path / "m.md"), "holding_period_days": 21}
@@ -994,7 +994,7 @@ def test_the_holding_window_is_configurable(tmp_path, monkeypatch):
 def test_the_reflection_states_the_window_it_judges():
     """Judging a months-long thesis on a week's alpha, without saying so, turns
     a scope mismatch into a lesson that the call was wrong."""
-    from tradingagents.graph.reflection import Reflector
+    from quantagent.graph.reflection import Reflector
 
     prompt = Reflector(None)._system_prompt(holding_days=5)
     assert "5" in prompt and "trading day" in prompt
@@ -1016,7 +1016,7 @@ def test_a_longer_window_asks_for_enough_price_history(monkeypatch):
             days = pd.bdate_range(start, end)
             return pd.DataFrame({"Close": range(len(days))}, index=days)
 
-    monkeypatch.setattr("tradingagents.dataflows.vendors.yahoo.market.yf.Ticker", _Ticker)
+    monkeypatch.setattr("quantagent.dataflows.vendors.yahoo.market.yf.Ticker", _Ticker)
 
     raw, alpha, days, resolved = settlement.fetch_returns("NVDA", "2026-06-01", 21, benchmark="SPY")
 

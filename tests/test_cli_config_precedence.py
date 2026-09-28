@@ -77,8 +77,8 @@ def test_glm_resolves_to_the_endpoint_its_key_belongs_to():
     BigModel China. A mismatch sends the key to the other platform and every
     call fails auth."""
     from cli.prompts import resolve_backend_url
-    from tradingagents.llm_clients.api_key_env import get_api_key_env
-    from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
+    from quantagent.llm_clients.api_key_env import get_api_key_env
+    from quantagent.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
 
     assert resolve_backend_url("glm", None, None) == OPENAI_COMPATIBLE_PROVIDERS["glm"].base_url
     assert get_api_key_env("glm") == "ZHIPU_API_KEY"

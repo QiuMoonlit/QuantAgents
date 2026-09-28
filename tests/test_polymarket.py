@@ -10,11 +10,11 @@ from unittest import mock
 import pytest
 import requests
 
-import tradingagents.dataflows.config as config_module
-import tradingagents.default_config as default_config
-from tradingagents.dataflows import router
-from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.vendors import polymarket
+import quantagent.dataflows.config as config_module
+import quantagent.default_config as default_config
+from quantagent.dataflows import router
+from quantagent.dataflows.config import set_config
+from quantagent.dataflows.vendors import polymarket
 
 
 def _market(question, prob, *, volume, end_date, closed=False, wk=None):

@@ -23,14 +23,14 @@ from cli.display import (
 )
 from cli.selections import get_user_selections
 from cli.stats_handler import StatsCallbackHandler
-from tradingagents.agents.rating import is_review
-from tradingagents.dataflows.symbols import safe_ticker_component
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.graph.analyst_execution import (
+from quantagent.agents.rating import is_review
+from quantagent.dataflows.symbols import safe_ticker_component
+from quantagent.default_config import DEFAULT_CONFIG
+from quantagent.graph.analyst_execution import (
     build_analyst_execution_plan,
 )
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.reporting import write_report_tree
+from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.reporting import write_report_tree
 
 
 def _run_directory(config: dict, ticker: str, trade_date: str) -> Path:

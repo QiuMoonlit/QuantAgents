@@ -1,6 +1,6 @@
 import unittest
 
-from tradingagents.graph.analyst_execution import (
+from quantagent.graph.analyst_execution import (
     build_analyst_execution_plan,
 )
 

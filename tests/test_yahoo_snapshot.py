@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-import tradingagents.dataflows.vendors.yahoo.snapshot as validator
+import quantagent.dataflows.vendors.yahoo.snapshot as validator
 
 
 def _sample_ohlcv() -> pd.DataFrame:
@@ -66,7 +66,7 @@ class TestVerifiedSnapshot:
 @pytest.mark.unit
 class TestTool:
     def test_tool_delegates_to_builder(self, monkeypatch):
-        from tradingagents.agents.tools import get_verified_market_snapshot
+        from quantagent.agents.tools import get_verified_market_snapshot
         monkeypatch.setattr(validator, "load_ohlcv", lambda s, d, fill_gaps=True: _sample_ohlcv())
         out = get_verified_market_snapshot.invoke(
             {"symbol": "COF", "curr_date": "2026-05-20"}

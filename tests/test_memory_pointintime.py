@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from tradingagents.decision_log import TradingMemoryLog
+from quantagent.decision_log import TradingMemoryLog
 
 
 def _log(tmp_path):
@@ -84,7 +84,7 @@ def test_memory_as_of_gates_historical_but_not_live():
     # None so live behavior and legacy entries are unaffected (#1251).
     from datetime import datetime, timedelta
 
-    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import TradingAgentsGraph
 
     g = object.__new__(TradingAgentsGraph)
     past = "2024-01-01"

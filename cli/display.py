@@ -15,7 +15,7 @@ from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 
-from tradingagents.graph.analyst_execution import (
+from quantagent.graph.analyst_execution import (
     ANALYST_NODE_SPECS,
     AnalystExecutionPlan,
 )

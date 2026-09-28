@@ -23,7 +23,7 @@ def test_an_analyst_brief_is_text_not_a_python_object(name):
     import ast
     import inspect
 
-    mod = importlib.import_module(f"tradingagents.agents.analysts.{name}")
+    mod = importlib.import_module(f"quantagent.agents.analysts.{name}")
     tree = ast.parse(inspect.getsource(mod))
     briefs = [node.value for node in ast.walk(tree)
               if isinstance(node, ast.Assign)
@@ -40,17 +40,17 @@ def test_an_analyst_is_not_asked_for_a_trade_call_nothing_reads(name):
     open with a direction that then travels as evidence."""
     import inspect
 
-    mod = importlib.import_module(f"tradingagents.agents.analysts.{name}")
+    mod = importlib.import_module(f"quantagent.agents.analysts.{name}")
     assert "FINAL TRANSACTION PROPOSAL" not in inspect.getsource(mod)
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("module, factory", [
-    ("tradingagents.agents.researchers.bull_researcher", "create_bull_researcher"),
-    ("tradingagents.agents.researchers.bear_researcher", "create_bear_researcher"),
-    ("tradingagents.agents.risk_mgmt.aggressive_debator", "create_aggressive_debator"),
-    ("tradingagents.agents.risk_mgmt.conservative_debator", "create_conservative_debator"),
-    ("tradingagents.agents.risk_mgmt.neutral_debator", "create_neutral_debator"),
+    ("quantagent.agents.researchers.bull_researcher", "create_bull_researcher"),
+    ("quantagent.agents.researchers.bear_researcher", "create_bear_researcher"),
+    ("quantagent.agents.risk_mgmt.aggressive_debator", "create_aggressive_debator"),
+    ("quantagent.agents.risk_mgmt.conservative_debator", "create_conservative_debator"),
+    ("quantagent.agents.risk_mgmt.neutral_debator", "create_neutral_debator"),
 ])
 def test_a_report_that_was_never_produced_says_so(module, factory):
     """`--analysts market` leaves three reports empty; presenting them as blank

@@ -6,8 +6,8 @@ from dotenv import find_dotenv, set_key
 
 from cli.display import console
 from cli.models import AnalystType, AssetType
-from tradingagents.llm_clients.api_key_env import get_api_key_env
-from tradingagents.llm_clients.model_catalog import get_model_options
+from quantagent.llm_clients.api_key_env import get_api_key_env
+from quantagent.llm_clients.model_catalog import get_model_options
 
 TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
 
@@ -69,7 +69,7 @@ def normalize_ticker_symbol(ticker: str) -> str:
     plain upper-case if the data layer is unavailable.
     """
     try:
-        from tradingagents.dataflows.symbols import normalize_symbol
+        from quantagent.dataflows.symbols import normalize_symbol
 
         return normalize_symbol(ticker)
     except Exception:
@@ -602,7 +602,7 @@ def ensure_api_key(provider: str) -> str | None:
 
     # Key-optional providers (generic OpenAI-compatible / local servers) read the
     # key when present but must never force an interactive prompt.
-    from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
+    from quantagent.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
     spec = OPENAI_COMPATIBLE_PROVIDERS.get(provider.lower())
     if spec is not None and spec.key_optional:
         return os.environ.get(env_var)

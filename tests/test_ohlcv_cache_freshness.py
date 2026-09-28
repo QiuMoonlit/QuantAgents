@@ -12,7 +12,7 @@ import os
 import pandas as pd
 import pytest
 
-from tradingagents.dataflows.vendors.yahoo import ohlcv
+from quantagent.dataflows.vendors.yahoo import ohlcv
 
 NOW = pd.Timestamp("2026-07-18 12:00")
 STALE = ohlcv.OHLCV_CACHE_TTL_SECONDS + 60

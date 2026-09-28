@@ -14,10 +14,10 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from tradingagents.dataflows import router
-from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.errors import NoMarketDataError
-from tradingagents.dataflows.vendors.yahoo import ohlcv
+from quantagent.dataflows import router
+from quantagent.dataflows.config import set_config
+from quantagent.dataflows.errors import NoMarketDataError
+from quantagent.dataflows.vendors.yahoo import ohlcv
 
 
 @pytest.mark.unit
@@ -95,8 +95,8 @@ if __name__ == "__main__":
 
 @pytest.mark.unit
 def test_an_unreachable_yahoo_is_not_reported_as_a_symbol_without_insider_data():
-    from tradingagents.dataflows.errors import VendorRateLimitError
-    from tradingagents.dataflows.vendors.yahoo import fundamentals
+    from quantagent.dataflows.errors import VendorRateLimitError
+    from quantagent.dataflows.vendors.yahoo import fundamentals
 
     ticker = type("T", (), {"insider_transactions": pd.DataFrame()})()
     with mock.patch.object(fundamentals.yf, "Ticker", return_value=ticker), \

@@ -7,10 +7,10 @@ hit the right instrument instead of failing/mismatching.
 """
 import pandas as pd
 
-import tradingagents.agents.context as au
-import tradingagents.dataflows.vendors.yahoo.market as yahoo_market
-import tradingagents.dataflows.vendors.yahoo.news as ynews
-from tradingagents.graph import settlement
+import quantagent.agents.context as au
+import quantagent.dataflows.vendors.yahoo.market as yahoo_market
+import quantagent.dataflows.vendors.yahoo.news as ynews
+from quantagent.graph import settlement
 
 
 def test_identity_lookup_normalizes_symbol(monkeypatch):

@@ -10,11 +10,11 @@ from unittest import mock
 import pytest
 import requests
 
-import tradingagents.dataflows.config as config_module
-import tradingagents.default_config as default_config
-from tradingagents.dataflows import router
-from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.vendors import fred
+import quantagent.dataflows.config as config_module
+import quantagent.default_config as default_config
+from quantagent.dataflows import router
+from quantagent.dataflows.config import set_config
+from quantagent.dataflows.vendors import fred
 
 # A small, stable set of observations to format against.
 _META = {
@@ -247,7 +247,7 @@ class TestKeyKeptOutOfErrors:
 
     def _raises(self, side_effect):
         with mock.patch.dict("os.environ", {"FRED_API_KEY": _KEY}), \
-             mock.patch("tradingagents.dataflows.net.requests.get", side_effect=side_effect), \
+             mock.patch("quantagent.dataflows.net.requests.get", side_effect=side_effect), \
              pytest.raises(requests.RequestException) as caught:
             fred._request("series", {"series_id": "DGS10"})
         return caught.value
@@ -259,7 +259,7 @@ class TestKeyKeptOutOfErrors:
             response=response,
         )
         with mock.patch.dict("os.environ", {"FRED_API_KEY": _KEY}), \
-             mock.patch("tradingagents.dataflows.net.requests.get", return_value=response), \
+             mock.patch("quantagent.dataflows.net.requests.get", return_value=response), \
              pytest.raises(requests.HTTPError) as caught:
             fred._request("series", {"series_id": "DGS10"})
         exc = caught.value
@@ -281,7 +281,7 @@ def test_error_without_the_key_in_its_message_still_drops_the_request():
     import requests as rq
     req = rq.Request("GET", f"https://api.stlouisfed.org/fred/series?api_key={_KEY}").prepare()
     with mock.patch.dict("os.environ", {"FRED_API_KEY": _KEY}), \
-         mock.patch("tradingagents.dataflows.net.requests.get", side_effect=rq.Timeout("Read timed out.", request=req)), \
+         mock.patch("quantagent.dataflows.net.requests.get", side_effect=rq.Timeout("Read timed out.", request=req)), \
          pytest.raises(rq.Timeout) as caught:
         fred._request("series", {"series_id": "DGS10"})
     assert caught.value.request is None

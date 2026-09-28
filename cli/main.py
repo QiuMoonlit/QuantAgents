@@ -4,9 +4,9 @@ import typer
 
 from cli.display import console
 from cli.run import run_analysis
-from tradingagents.backtest import iter_grid, run_backtest, summarize
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.portfolio import load_portfolio
+from quantagent.backtest import iter_grid, run_backtest, summarize
+from quantagent.default_config import DEFAULT_CONFIG
+from quantagent.portfolio import load_portfolio
 
 # prompt_toolkit's win32 output module is importable only on Windows (it asserts
 # the platform at import time), so gate on the platform rather than catching the
@@ -48,11 +48,11 @@ def analyze(
         "portfolio agents size against your actual position.",
     ),
 ):
-    """Run an analysis. This is what a bare `tradingagents` does."""
+    """Run an analysis. This is what a bare `quantagent` does."""
     if ctx.invoked_subcommand is not None:
         return
     if clear_checkpoints:
-        from tradingagents.graph.checkpointer import clear_all_checkpoints
+        from quantagent.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     portfolio_context = None

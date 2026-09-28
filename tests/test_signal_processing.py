@@ -6,7 +6,7 @@ header, so the rating is read deterministically; no second model call is made.
 
 import pytest
 
-from tradingagents.agents.rating import RATING_REVIEW, RATINGS_5_TIER, extract_rating, parse_rating
+from quantagent.agents.rating import RATING_REVIEW, RATINGS_5_TIER, extract_rating, parse_rating
 
 # ---------------------------------------------------------------------------
 # Heuristic parser
@@ -83,7 +83,7 @@ class TestGraphSignalContract:
     documented "5-tier or REVIEW" contract, not just the parser in isolation."""
 
     def _bare_graph(self):
-        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        from quantagent.graph.trading_graph import TradingAgentsGraph
         g = object.__new__(TradingAgentsGraph)
         return g
 

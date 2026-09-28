@@ -1,6 +1,6 @@
 """The CLI keeps running an analysis with no arguments, and gains `backtest`.
 
-Every documented invocation is bare (`tradingagents --checkpoint`), so analysis
+Every documented invocation is bare (`quantagent --checkpoint`), so analysis
 has to stay the default action while a second command exists alongside it.
 """
 

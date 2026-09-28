@@ -10,8 +10,8 @@ import importlib
 
 import pytest
 
-import tradingagents.default_config as default_config_module
-from tradingagents.llm_clients.factory import _coerce_max_retries, build_llm_kwargs
+import quantagent.default_config as default_config_module
+from quantagent.llm_clients.factory import _coerce_max_retries, build_llm_kwargs
 
 # --- coercion / validation -------------------------------------------------
 

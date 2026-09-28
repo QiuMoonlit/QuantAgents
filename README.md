@@ -55,7 +55,7 @@ Full release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#quantagent-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#quantagent-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -119,8 +119,8 @@ cd TradingAgents
 
 Create a virtual environment in any of your favorite environment managers:
 ```bash
-conda create -n tradingagents python=3.12
-conda activate tradingagents
+conda create -n quantagent python=3.12
+conda activate quantagent
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
@@ -139,14 +139,14 @@ pip install .
 Alternatively, run with Docker:
 ```bash
 cp .env.example .env  # add your API keys
-docker compose run --rm tradingagents
+docker compose run --rm quantagent
 ```
 
 After updating the repository, rebuild the image with `docker compose build`.
 
 For local models with Ollama:
 ```bash
-docker compose --profile ollama run --rm tradingagents-ollama
+docker compose --profile ollama run --rm quantagent-ollama
 ```
 
 ### Required APIs
@@ -194,7 +194,7 @@ cp .env.example .env
 
 Launch the interactive CLI:
 ```bash
-tradingagents          # installed command
+quantagent          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `TRADINGAGENTS_*` variables in `.env` still skip their step entirely.
@@ -231,11 +231,11 @@ We built TradingAgents with LangGraph to ensure flexibility and modularity. The 
 
 ### Python Usage
 
-To use TradingAgents inside your code, you can import the `tradingagents` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
+To use TradingAgents inside your code, you can import the `quantagent` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
 
 ```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
+from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.default_config import DEFAULT_CONFIG
 
 ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 
@@ -247,8 +247,8 @@ print(decision)
 You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
 
 ```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
+from quantagent.graph.trading_graph import TradingAgentsGraph
+from quantagent.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
 config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, deepseek, groq, ollama; openai_compatible covers any OpenAI-compatible endpoint (vLLM, LM Studio, llama.cpp, ...)
@@ -261,7 +261,7 @@ _, decision = ta.propagate("NVDA", "2026-09-01")
 print(decision)
 ```
 
-See `tradingagents/default_config.py` for all configuration options.
+See `quantagent/default_config.py` for all configuration options.
 
 ### Fundamentals as filed
 
@@ -286,7 +286,7 @@ It covers companies that file with the SEC, including foreign companies listed i
 By default the agents do not know what you hold, so their guidance is written for a reader who applies it to their own position. Pass a portfolio to have the trader, the risk analysts and the portfolio manager work against your actual book.
 
 ```python
-from tradingagents.portfolio import PortfolioContext
+from quantagent.portfolio import PortfolioContext
 
 portfolio = PortfolioContext.model_validate({
     "cash": 25000.0,
@@ -296,7 +296,7 @@ portfolio = PortfolioContext.model_validate({
 _, decision = ta.propagate("NVDA", "2026-09-01", portfolio=portfolio)
 ```
 
-The CLI takes the same content as a JSON file: `tradingagents --portfolio my_book.json`.
+The CLI takes the same content as a JSON file: `quantagent --portfolio my_book.json`.
 
 An empty `positions` list means a flat book, which is different from passing nothing. A run without a portfolio is never treated as flat.
 
@@ -306,7 +306,7 @@ TradingAgents persists two kinds of state across runs.
 
 ### Decision log
 
-The decision log is always on. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw, and alpha against the instrument's regional benchmark), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
+The decision log is always on. Each completed run appends its decision to `~/.quantagent/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw, and alpha against the instrument's regional benchmark), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
 
 Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
 
@@ -314,11 +314,11 @@ Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
 
 Checkpoint resume is opt-in via `--checkpoint`. When enabled, LangGraph saves state after each node so a crashed or interrupted run resumes from the last successful step instead of starting over. The run view says whether it resumed a saved run or started fresh. Checkpoints are cleared automatically on successful completion.
 
-Per-ticker SQLite databases live at `~/.tradingagents/cache/checkpoints/<TICKER>.db` (override the base with `TRADINGAGENTS_CACHE_DIR`). Use `--clear-checkpoints` to reset all of them before a run.
+Per-ticker SQLite databases live at `~/.quantagent/cache/checkpoints/<TICKER>.db` (override the base with `TRADINGAGENTS_CACHE_DIR`). Use `--clear-checkpoints` to reset all of them before a run.
 
 ```bash
-tradingagents --checkpoint           # enable for this run
-tradingagents --clear-checkpoints    # reset before running
+quantagent --checkpoint           # enable for this run
+quantagent --clear-checkpoints    # reset before running
 ```
 
 ```python
@@ -333,7 +333,7 @@ _, decision = ta.propagate("NVDA", "2026-09-01")
 One run gives one decision, which cannot tell you whether the system decides well. `run_backtest` runs the same pipeline over a grid of tickers and dates, writes to a decision log of its own, and scores the decisions whose holding window has since traded.
 
 ```python
-from tradingagents.backtest import iter_grid, run_backtest, summarize
+from quantagent.backtest import iter_grid, run_backtest, summarize
 
 dates = iter_grid("2026-06-01", "2026-08-01", every_n_days=7)
 result = run_backtest(["NVDA", "AAPL"], dates, config, selected_analysts=["market", "news"])
@@ -343,7 +343,7 @@ print(summarize(result).render())
 From the CLI:
 
 ```bash
-tradingagents backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
+quantagent backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
 ```
 
 Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. Your own decision log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.

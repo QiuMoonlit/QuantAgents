@@ -6,7 +6,7 @@ from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from tradingagents.graph.checkpointer import (
+from quantagent.graph.checkpointer import (
     checkpoint_step,
     clear_checkpoint,
     get_checkpointer,
@@ -191,7 +191,7 @@ class TestCheckpointSignature(unittest.TestCase):
         self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date, sig1))
 
     def test_run_signature_captures_graph_shape(self):
-        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        from quantagent.graph.trading_graph import TradingAgentsGraph
 
         # Build a bare instance to exercise the pure helper without heavy __init__.
         g = object.__new__(TradingAgentsGraph)

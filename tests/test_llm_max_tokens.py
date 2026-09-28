@@ -12,8 +12,8 @@ import importlib
 
 import pytest
 
-import tradingagents.default_config as default_config_module
-from tradingagents.llm_clients.factory import _coerce_max_tokens, build_llm_kwargs
+import quantagent.default_config as default_config_module
+from quantagent.llm_clients.factory import _coerce_max_tokens, build_llm_kwargs
 
 # --- coercion / validation -------------------------------------------------
 
@@ -87,8 +87,8 @@ def test_invalid_value_fails_loudly():
 
 @pytest.mark.unit
 def test_openai_and_google_clients_accept_the_kwarg():
-    from tradingagents.llm_clients import openai_client
-    from tradingagents.llm_clients.google_client import GoogleClient  # noqa: F401
+    from quantagent.llm_clients import openai_client
+    from quantagent.llm_clients.google_client import GoogleClient  # noqa: F401
     assert "max_tokens" in openai_client._PASSTHROUGH_KWARGS
     # Google client forwards max_output_tokens through construction.
     llm = GoogleClient("gemini-3.5-flash", api_key="x", max_output_tokens=8192).get_llm()

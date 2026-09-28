@@ -15,8 +15,8 @@ from typing import TypedDict
 import pytest
 from langgraph.graph import END, StateGraph
 
-from tradingagents.graph.checkpointer import checkpoint_step
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+from quantagent.graph.checkpointer import checkpoint_step
+from quantagent.graph.trading_graph import TradingAgentsGraph
 
 _should_crash = False
 
@@ -157,7 +157,7 @@ def test_cli_style_usage_saves_then_resumes():
 def test_clearing_removes_the_database_sidecars(tmp_path):
     """SQLite writes -wal and -shm next to the database; leaving them behind
     means a cleared checkpoint still has committed state on disk."""
-    from tradingagents.graph.checkpointer import clear_all_checkpoints
+    from quantagent.graph.checkpointer import clear_all_checkpoints
 
     cp = tmp_path / "checkpoints"
     cp.mkdir(parents=True)

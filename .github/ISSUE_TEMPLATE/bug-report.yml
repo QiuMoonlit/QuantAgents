@@ -11,7 +11,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: Output of `pip show tradingagents | grep Version`, or `git rev-parse --short HEAD` for a source checkout.
+      description: Output of `pip show quantagent | grep Version`, or `git rev-parse --short HEAD` for a source checkout.
       placeholder: "0.5.1"
     validations:
       required: true
@@ -20,9 +20,9 @@ body:
     attributes:
       label: How you run it
       options:
-        - CLI (tradingagents)
+        - CLI (quantagent)
         - Python package (TradingAgentsGraph)
-        - Backtest (run_backtest or tradingagents backtest)
+        - Backtest (run_backtest or quantagent backtest)
         - Docker
     validations:
       required: true

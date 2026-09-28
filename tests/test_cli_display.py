@@ -16,7 +16,7 @@ from cli.display import (
     extract_content_string,
     sync_analyst_tracker_from_chunk,
 )
-from tradingagents.graph.analyst_execution import build_analyst_execution_plan
+from quantagent.graph.analyst_execution import build_analyst_execution_plan
 
 
 @pytest.mark.unit
@@ -58,7 +58,7 @@ def _state(ticker, final="评级: 买入"):
 
 
 def _bare_graph(tmp_path):
-    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import TradingAgentsGraph
 
     graph = object.__new__(TradingAgentsGraph)
     graph.config = {"results_dir": str(tmp_path)}

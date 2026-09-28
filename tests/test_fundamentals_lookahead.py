@@ -19,9 +19,9 @@ from unittest import mock
 
 import pytest
 
-from tradingagents.dataflows import date_window
-from tradingagents.dataflows.vendors.alpha_vantage import fundamentals as av
-from tradingagents.dataflows.vendors.yahoo import (
+from quantagent.dataflows import date_window
+from quantagent.dataflows.vendors.alpha_vantage import fundamentals as av
+from quantagent.dataflows.vendors.yahoo import (
     fundamentals as yahoo_fundamentals,
     market as yahoo_market,
 )
@@ -128,7 +128,7 @@ class TestNoUsableFieldsStillRaises:
     def test_stub_payload_raises_no_market_data(self):
         # yfinance returns {"trailingPegRatio": None} for unknown symbols; on a
         # live run that must stay a hard "no data", not a bare header.
-        from tradingagents.dataflows.errors import NoMarketDataError
+        from quantagent.dataflows.errors import NoMarketDataError
 
         with pytest.raises(NoMarketDataError):
             _yf(_TODAY, info={"trailingPegRatio": None})

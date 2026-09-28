@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-import tradingagents.dataflows.vendors.yahoo.news as ynews
-from tradingagents.dataflows.date_window import in_window
+import quantagent.dataflows.vendors.yahoo.news as ynews
+from quantagent.dataflows.date_window import in_window
 
 
 def _epoch(date_str):
@@ -153,7 +153,7 @@ def test_ticker_news_covered_but_empty_window_is_a_real_absence(monkeypatch):
       datetime(2026, 4, 1, tzinfo=timezone.utc)], False),    # coverage reaches back
 ])
 def test_coverage_gap_boundaries(dates, expect_gap):
-    from tradingagents.dataflows.date_window import coverage_gap
+    from quantagent.dataflows.date_window import coverage_gap
 
     out = coverage_gap(dates, "2026-05-01", "2026-05-08", "Feed", "items")
     assert (out is not None) is expect_gap
@@ -207,7 +207,7 @@ def test_global_news_does_not_infer_coverage_from_a_stale_search_hit(monkeypatch
 def test_coverage_gap_future_window_is_unavailable():
     from datetime import timedelta
 
-    from tradingagents.dataflows.date_window import coverage_gap
+    from quantagent.dataflows.date_window import coverage_gap
     today = datetime.now(timezone.utc).date()
     out = coverage_gap([], str(today), str(today + timedelta(days=3)), "Feed", "items")
     assert out is not None and "past today" in out

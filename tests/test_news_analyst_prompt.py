@@ -7,8 +7,8 @@ import inspect
 
 import pytest
 
-import tradingagents.agents.analysts.news_analyst as na
-from tradingagents.agents.tools import get_news
+import quantagent.agents.analysts.news_analyst as na
+from quantagent.agents.tools import get_news
 
 
 @pytest.mark.unit

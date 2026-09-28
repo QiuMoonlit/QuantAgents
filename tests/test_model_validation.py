@@ -3,9 +3,9 @@ import warnings
 
 import pytest
 
-from tradingagents.llm_clients.base_client import BaseLLMClient
-from tradingagents.llm_clients.model_catalog import get_known_models
-from tradingagents.llm_clients.validators import validate_model
+from quantagent.llm_clients.base_client import BaseLLMClient
+from quantagent.llm_clients.model_catalog import get_known_models
+from quantagent.llm_clients.validators import validate_model
 
 
 class DummyLLMClient(BaseLLMClient):
@@ -56,8 +56,8 @@ class ModelValidationTests(unittest.TestCase):
 
 
 def test_legacy_ids_stay_valid_without_being_offered():
-    from tradingagents.llm_clients.model_catalog import LEGACY_MODELS, MODEL_OPTIONS
-    from tradingagents.llm_clients.validators import validate_model
+    from quantagent.llm_clients.model_catalog import LEGACY_MODELS, MODEL_OPTIONS
+    from quantagent.llm_clients.validators import validate_model
 
     for provider, ids in LEGACY_MODELS.items():
         offered = {v for opts in MODEL_OPTIONS[provider].values() for _, v in opts}
@@ -70,7 +70,7 @@ def test_legacy_ids_stay_valid_without_being_offered():
 def test_an_explicit_alias_of_a_listed_model_is_known():
     """gpt-5.6 is served under its own name and as gpt-5.6-sol; naming the
     explicit one should not warn that the model is unknown."""
-    from tradingagents.llm_clients.validators import validate_model
+    from quantagent.llm_clients.validators import validate_model
 
     assert validate_model("openai", "gpt-5.6-sol")
 
@@ -81,7 +81,7 @@ def test_an_explicit_alias_of_a_listed_model_is_known():
 def test_every_provider_lets_you_name_your_own_model(provider, mode):
     """The docs tell users to name any model their provider serves; the picker
     has to offer that too, or a new model is unreachable until we ship a list."""
-    from tradingagents.llm_clients.model_catalog import get_model_options
+    from quantagent.llm_clients.model_catalog import get_model_options
 
     assert "custom" in [value for _, value in get_model_options(provider, mode)]
 
@@ -95,6 +95,6 @@ def test_every_provider_lets_you_name_your_own_model(provider, mode):
 def test_a_retired_model_id_still_runs_without_a_warning(provider, model):
     """A config written against an earlier release keeps working: the provider
     still serves these, they are just no longer offered in the picker."""
-    from tradingagents.llm_clients.validators import validate_model
+    from quantagent.llm_clients.validators import validate_model
 
     assert validate_model(provider, model)

@@ -5,8 +5,8 @@ import unittest
 
 import pytest
 
-import tradingagents.default_config as default_config
-from tradingagents.dataflows.config import get_config, set_config
+import quantagent.default_config as default_config
+from quantagent.dataflows.config import get_config, set_config
 
 
 @pytest.mark.unit
@@ -64,7 +64,7 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
 # --- the config of the run in progress (#1369) --------------------------------
 
 def _graph(config):
-    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from quantagent.graph.trading_graph import TradingAgentsGraph
 
     g = object.__new__(TradingAgentsGraph)
     g.config = config
@@ -73,7 +73,7 @@ def _graph(config):
 
 
 def _vendors_seen_by_a_run(graph, ticker="AAPL"):
-    from tradingagents.dataflows.router import get_vendor
+    from quantagent.dataflows.router import get_vendor
 
     seen = []
 
@@ -121,7 +121,7 @@ def test_concurrent_runs_each_read_their_own_config():
         config = copy.deepcopy(default_config.DEFAULT_CONFIG)
         config["tool_vendors"] = {"get_balance_sheet": vendor}
         graph = _graph(config)
-        from tradingagents.dataflows.router import get_vendor
+        from quantagent.dataflows.router import get_vendor
 
         def _run(*a, **k):
             barrier.wait(timeout=5)                     # both runs are in flight
@@ -141,14 +141,14 @@ def test_concurrent_runs_each_read_their_own_config():
 
 @pytest.mark.unit
 def test_settling_reads_the_graphs_own_config(monkeypatch):
-    from tradingagents.dataflows.router import get_vendor
+    from quantagent.dataflows.router import get_vendor
 
     config = copy.deepcopy(default_config.DEFAULT_CONFIG)
     config["tool_vendors"] = {"get_stock_data": "alpha_vantage"}
     graph = _graph(config)
     graph.memory_log = graph.reflector = None      # the settlement below is a stand-in
     seen = []
-    from tradingagents.graph import settlement
+    from quantagent.graph import settlement
 
     monkeypatch.setattr(settlement, "settle_pending",
                         lambda *a: seen.append(get_vendor("core_stock_apis", "get_stock_data")))
@@ -166,8 +166,8 @@ def test_tools_inside_a_langgraph_run_see_the_run_config():
     from langgraph.graph import END, START, MessagesState, StateGraph
     from langgraph.prebuilt import ToolNode
 
-    from tradingagents.dataflows.config import run_config
-    from tradingagents.dataflows.router import get_vendor
+    from quantagent.dataflows.config import run_config
+    from quantagent.dataflows.router import get_vendor
 
     @tool
     def probe() -> str:
@@ -195,7 +195,7 @@ def test_tools_inside_a_langgraph_run_see_the_run_config():
 @pytest.mark.unit
 def test_a_run_config_missing_a_newer_key_still_reads_the_default():
     """A config saved before a key existed must not fail inside a run."""
-    from tradingagents.dataflows.config import get_config, run_config
+    from quantagent.dataflows.config import get_config, run_config
 
     config = copy.deepcopy(default_config.DEFAULT_CONFIG)
     del config["news_article_limit"]

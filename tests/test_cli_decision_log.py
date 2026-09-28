@@ -12,8 +12,8 @@ from __future__ import annotations
 import pytest
 
 import cli.run as cli_run
-from tradingagents.decision_log import TradingMemoryLog
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+from quantagent.decision_log import TradingMemoryLog
+from quantagent.graph.trading_graph import TradingAgentsGraph
 
 
 def _bare_graph(tmp_path):
@@ -26,7 +26,7 @@ def _bare_graph(tmp_path):
 
 @pytest.mark.unit
 def test_create_run_state_settles_pending_and_carries_context(tmp_path, monkeypatch):
-    from tradingagents.graph.propagation import Propagator
+    from quantagent.graph.propagation import Propagator
 
     graph = _bare_graph(tmp_path)
     graph.propagator = Propagator()
@@ -77,7 +77,7 @@ class _FakeGraph:
         return {"messages": [], "company_of_interest": ticker}
 
     def process_signal(self, text):
-        from tradingagents.agents.rating import parse_rating
+        from quantagent.agents.rating import parse_rating
         return parse_rating(text)
 
     def record_decision(self, ticker, trade_date, final_state):

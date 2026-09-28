@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-import tradingagents.default_config as default_config_module
+import quantagent.default_config as default_config_module
 
 
 def _reload_with_env(monkeypatch, **overrides):

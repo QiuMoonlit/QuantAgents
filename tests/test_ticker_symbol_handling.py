@@ -3,7 +3,7 @@ import unittest
 import pytest
 
 from cli.prompts import normalize_ticker_symbol
-from tradingagents.agents.context import build_instrument_context
+from quantagent.agents.context import build_instrument_context
 
 
 @pytest.mark.unit

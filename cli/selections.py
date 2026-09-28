@@ -33,7 +33,7 @@ from cli.prompts import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
-from tradingagents.default_config import DEFAULT_CONFIG
+from quantagent.default_config import DEFAULT_CONFIG
 
 
 def get_user_selections():

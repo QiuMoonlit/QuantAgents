@@ -11,11 +11,11 @@ from unittest import mock
 
 import pytest
 
-import tradingagents.dataflows.config as config_module
-import tradingagents.default_config as default_config
-from tradingagents.dataflows import router
-from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.errors import NoMarketDataError
+import quantagent.dataflows.config as config_module
+import quantagent.default_config as default_config
+from quantagent.dataflows import router
+from quantagent.dataflows.config import set_config
+from quantagent.dataflows.errors import NoMarketDataError
 
 
 def _reset_config():
@@ -76,7 +76,7 @@ class VendorRoutingTests(unittest.TestCase):
         # must be visible in logs (broken primary not hidden).
         set_config({"data_vendors": {"core_stock_apis": "yfinance,alpha_vantage"}})
         with self._route({"yfinance": _raises(ValueError("boom")), "alpha_vantage": _no_data}), \
-                self.assertLogs("tradingagents.dataflows.router", level="WARNING") as cm:
+                self.assertLogs("quantagent.dataflows.router", level="WARNING") as cm:
             result = router.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
         self.assertIn("NO_DATA_AVAILABLE", result)
         joined = "\n".join(cm.output)
